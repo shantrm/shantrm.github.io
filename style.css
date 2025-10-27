@@ -1,0 +1,372 @@
+/* Reset and Base Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+    line-height: 1.6;
+    color: #333;
+    background-color: #fafafa;
+    padding: 20px;
+}
+
+/* Container */
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    background: white;
+    padding: 60px 40px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+/* Headers */
+.main-header {
+    text-align: center;
+    margin-bottom: 40px;
+    padding-bottom: 30px;
+    border-bottom: 1px solid #eee;
+}
+
+.main-header h1 {
+    font-size: 2.5rem;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #1a1a1a;
+}
+
+.subtitle {
+    font-size: 1.1rem;
+    color: #666;
+    font-weight: 400;
+}
+
+.page-header {
+    margin-bottom: 40px;
+}
+
+.page-header h1 {
+    font-size: 2rem;
+    font-weight: 600;
+    margin-bottom: 15px;
+    color: #1a1a1a;
+}
+
+.back-link {
+    display: inline-block;
+    color: #666;
+    text-decoration: none;
+    font-size: 0.95rem;
+    transition: color 0.2s;
+}
+
+.back-link:hover {
+    color: #333;
+}
+
+/* Contact Section */
+.contact-section {
+    margin-bottom: 40px;
+}
+
+.social-links {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-bottom: 25px;
+}
+
+.social-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background-color: #f5f5f5;
+    border-radius: 8px;
+    text-decoration: none;
+    color: #333;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.social-link:hover {
+    background-color: #e8e8e8;
+    transform: translateY(-2px);
+}
+
+.social-link svg {
+    width: 20px;
+    height: 20px;
+}
+
+.contact-info {
+    text-align: center;
+    color: #666;
+}
+
+.contact-info p {
+    margin: 8px 0;
+    font-size: 0.95rem;
+}
+
+/* Navigation */
+.main-nav {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-top: 30px;
+}
+
+.nav-link {
+    display: block;
+    padding: 18px 24px;
+    text-align: center;
+    background-color: #1a1a1a;
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.nav-link:hover {
+    background-color: #333;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Content Section */
+.content-section {
+    margin-top: 30px;
+}
+
+.content-section h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 25px;
+    color: #1a1a1a;
+}
+
+/* Projects */
+.project-item {
+    background: #f9f9f9;
+    padding: 25px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border-left: 4px solid #1a1a1a;
+}
+
+.project-item h3 {
+    font-size: 1.3rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #1a1a1a;
+}
+
+.project-meta {
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 12px;
+}
+
+.project-item p {
+    margin-bottom: 15px;
+    color: #555;
+}
+
+.project-links {
+    display: flex;
+    gap: 12px;
+}
+
+.btn-secondary {
+    display: inline-block;
+    padding: 8px 16px;
+    background-color: white;
+    color: #1a1a1a;
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    border: 1px solid #ddd;
+    transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+    border-color: #1a1a1a;
+    background-color: #f5f5f5;
+}
+
+/* Work Experience */
+.experience-item {
+    margin-bottom: 30px;
+    padding-bottom: 30px;
+    border-bottom: 1px solid #eee;
+}
+
+.experience-item:last-child {
+    border-bottom: none;
+}
+
+.experience-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+.experience-header h3 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #1a1a1a;
+}
+
+.date {
+    font-size: 0.9rem;
+    color: #666;
+    font-weight: 500;
+}
+
+.company {
+    font-size: 1rem;
+    color: #666;
+    margin-bottom: 12px;
+}
+
+.experience-details {
+    margin-left: 20px;
+    color: #555;
+}
+
+.experience-details li {
+    margin-bottom: 8px;
+}
+
+/* Personal Page */
+.hobby-item {
+    background: #f9f9f9;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+
+.hobby-item h3 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #1a1a1a;
+}
+
+.hobby-item p {
+    color: #555;
+}
+
+.gallery-intro {
+    color: #666;
+    margin-bottom: 25px;
+    font-style: italic;
+}
+
+/* Photo Gallery */
+.photo-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.photo-item {
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s;
+}
+
+.photo-item:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.photo-item img {
+    width: 100%;
+    height: 250px;
+    object-fit: cover;
+    display: block;
+}
+
+.photo-caption {
+    padding: 12px;
+    font-size: 0.9rem;
+    color: #666;
+    text-align: center;
+}
+
+/* Footer */
+footer {
+    margin-top: 50px;
+    padding-top: 30px;
+    border-top: 1px solid #eee;
+    text-align: center;
+    color: #999;
+    font-size: 0.9rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .container {
+        padding: 40px 25px;
+    }
+
+    .main-header h1 {
+        font-size: 2rem;
+    }
+
+    .social-links {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .social-link {
+        justify-content: center;
+    }
+
+    .main-nav {
+        grid-template-columns: 1fr;
+    }
+
+    .experience-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .date {
+        margin-top: 4px;
+    }
+
+    .photo-gallery {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    body {
+        padding: 10px;
+    }
+
+    .container {
+        padding: 30px 20px;
+    }
+
+    .main-header h1 {
+        font-size: 1.75rem;
+    }
+
+    .page-header h1 {
+        font-size: 1.5rem;
+    }
+}
