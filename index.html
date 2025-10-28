@@ -55,7 +55,13 @@
     </style>
 </head>
 
-<body>
+<body class="dark-mode">
+    <div class="theme-selector">
+        <select id="theme-select" onchange="changeTheme()">
+            <option value="dark">Dark</option>
+            <option value="light">Light</option>
+        </select>
+    </div>
     <div class="container">
         <div class="name-header">
             <h1>Shant Manoukian</h1>
@@ -87,6 +93,33 @@
             <a href="snake.html">play my old <span class="snake-highlight">snake game</span>!</a>
         </div>
     </div>
+
+    <script>
+        function changeTheme() {
+            const theme = document.getElementById('theme-select').value;
+            const body = document.body;
+
+            // Remove all theme classes
+            body.classList.remove('dark-mode', 'light-mode');
+
+            // Add selected theme class
+            body.classList.add(theme + '-mode');
+
+            // Save theme preference
+            localStorage.setItem('theme', theme);
+        }
+
+        // Load saved theme
+        window.addEventListener('load', function () {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            const select = document.getElementById('theme-select');
+            const body = document.body;
+
+            select.value = savedTheme;
+            body.classList.remove('dark-mode', 'light-mode');
+            body.classList.add(savedTheme + '-mode');
+        });
+    </script>
 </body>
 
 </html>
