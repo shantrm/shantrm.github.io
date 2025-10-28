@@ -44,13 +44,7 @@
     </style>
 </head>
 
-<body class="dark-mode">
-    <div class="theme-selector">
-        <select id="theme-select" onchange="changeTheme()">
-            <option value="dark">Dark</option>
-            <option value="light">Light</option>
-        </select>
-    </div>
+<body>
     <div class="container">
         <div class="header">
             <h1>Personal</h1>
@@ -65,14 +59,12 @@
         <div class="section">
             <div class="section-title">Interests & Hobbies</div>
             <ul>
-                <li>Thrifting and Sustainability - Love finding pieces of clothes or furniture that have already lived a
-                    life before me. Adds a fun element!</li>
-                <li>Politics and Current Events - Super interested in what's going on in the world and how it affects
-                    our lives. Or maybe I'm just nosey...</li>
-                <li>Video Games - College has unfortunately sucked away my gaming time, but I'm a massive Mario Kart and
-                    Soulslike fan. Ask me about any indie game, I've probably played it!</li>
-                <li>Photography - I love to use niche digital cameras to try and capture things through my eyes. The
-                    worse the camera, the more fun I have with it!</li>
+                <li>Thrifting - Big fan of vintage clothing! </li>
+                <li> Souls Games + Sekiro <img src="sun-icon.png"
+                        style="width: 20px; height: 20px; vertical-align: middle;"> </li>
+                <li> 3DS Homebrew and Retro Games - New Leaf and Tomodachi Life <img src="leaf-icon.png"
+                        style="width: 20px; height: 20px; vertical-align: middle;"> </li>
+                <li> Photography - Always trying to wrangle my camera into taking good photos (Panasonic DMC-FX3) </li>
             </ul>
         </div>
 
@@ -152,33 +144,6 @@
             if (e.key === 'Escape') {
                 closeLightbox();
             }
-        });
-    </script>
-
-    <script>
-        function changeTheme() {
-            const theme = document.getElementById('theme-select').value;
-            const body = document.body;
-
-            // Remove all theme classes
-            body.classList.remove('dark-mode', 'light-mode');
-
-            // Add selected theme class
-            body.classList.add(theme + '-mode');
-
-            // Save theme preference
-            localStorage.setItem('theme', theme);
-        }
-
-        // Load saved theme
-        window.addEventListener('load', function () {
-            const savedTheme = localStorage.getItem('theme') || 'dark';
-            const select = document.getElementById('theme-select');
-            const body = document.body;
-
-            select.value = savedTheme;
-            body.classList.remove('dark-mode', 'light-mode');
-            body.classList.add(savedTheme + '-mode');
         });
     </script>
 </body>

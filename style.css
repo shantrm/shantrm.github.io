@@ -6,6 +6,7 @@
 }
 
 body {
+    font-weight: 300px;
     font-family: 'Courier New', monospace;
     margin: 0;
     padding: 0;
@@ -15,100 +16,45 @@ body {
     color: white;
 }
 
-/* Light Mode */
-body.light-mode {
-    background-color: rgb(241, 231, 223);
-    color: black;
-}
-
-body.light-mode .container {
-    background-color: rgba(255, 255, 255, 0.85);
-}
-
-body.light-mode h1,
-body.light-mode h2,
-body.light-mode h3,
-body.light-mode p,
-body.light-mode li,
-body.light-mode a {
-    color: black;
-}
-
-/* Dark Mode (default) */
-body.dark-mode {
-    background-color: #1a1a1a;
-    color: white;
-}
-
-body.dark-mode .container {
-    background-color: rgba(40, 40, 40, 0.85);
-}
-
-body.dark-mode h1,
-body.dark-mode h2,
-body.dark-mode h3,
-body.dark-mode p,
-body.dark-mode li,
-body.dark-mode a {
+h1,
+h2,
+h3,
+p,
+li,
+a {
     color: white;
 }
 
 .container {
-    max-width: 800px;
+    max-width: 850px;
     margin: 0 auto;
-    background-color: rgba(40, 40, 40, 0.85);
     padding: 40px;
     min-height: 100vh;
-}
-
-/* Theme Selector */
-.theme-selector {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 1000;
-}
-
-.theme-selector select {
-    padding: 10px 15px;
-    background-color: rgba(0, 0, 0, 0.7);
-    color: white;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 5px;
-    cursor: pointer;
-    font-family: 'Courier New', monospace;
-    font-size: 14px;
-}
-
-.theme-selector select:hover {
-    background-color: rgba(0, 0, 0, 0.85);
-}
-
-.theme-selector select option {
-    background-color: #2a2a2a;
-    color: white;
 }
 
 /* Home Page */
 h1 {
     font-weight: bold;
     font-size: 2em;
-    margin-bottom: 10px;
+    margin-bottom: 20px;
     text-align: center;
 }
 
 .subtitle {
     text-align: center;
-    margin-bottom: 20px;
+    margin-bottom: 30px;
+    line-height: 1.8;
+    font-size: 1.15em;
 }
 
 .contact-line {
     text-align: center;
-    margin: 10px 0;
+    margin: 15px 0;
+    line-height: 1.8;
 }
 
 .contact-line a {
-    color: black;
+    color: white;
     text-decoration: none;
     margin: 0 5px;
 }
@@ -119,15 +65,35 @@ h1 {
 
 .links-section {
     text-align: center;
-    margin-top: 30px;
+    margin-top: 40px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 15px;
 }
 
 .links-section a {
-    color: black;
-    text-decoration: underline;
+    color: white;
+    text-decoration: none;
+}
+
+.me-section {
+    text-align: center;
+    margin-top: 40px;
+}
+
+.me-image {
+    max-width: 400px;
+    width: 100%;
+    height: auto;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    display: block;
+    margin: 0 auto;
+}
+
+.me-caption {
+    margin-top: 10px;
+    font-size: 0.9em;
+    color: white;
 }
 
 /* Sub-pages */
@@ -141,8 +107,8 @@ h1 {
 }
 
 .nav-links a {
-    color: black;
-    text-decoration: underline;
+    color: white;
+    text-decoration: none;
     margin: 0 10px;
 }
 

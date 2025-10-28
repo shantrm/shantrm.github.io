@@ -8,32 +8,6 @@
     <link rel="icon" type="image/png" href="icon.png">
     <link rel="stylesheet" href="style.css">
     <style>
-        .name-header {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 15px;
-        }
-
-        .michigan-logo {
-            width: 50px;
-            height: 50px;
-            object-fit: contain;
-            margin-bottom: 14px;
-            /* Adjust this value to move logo up/down */
-        }
-
-        .headshot {
-            width: 150px;
-            height: 150px;
-            border-radius: 0;
-            /* Changed from 50% to make it square */
-            object-fit: cover;
-            margin: 20px auto;
-            display: block;
-            border: 3px solid #ccc;
-        }
-
         .snake-highlight {
             font-weight: bold;
             background-color: black;
@@ -44,7 +18,6 @@
         }
 
         .michigan-highlight {
-            font-weight: bold;
             background-color: #00274C;
             /* Michigan Blue */
             color: #FFCB05;
@@ -52,27 +25,35 @@
             padding: 2px 4px;
             border-radius: 3px;
         }
+
+        .lightbox {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .lightbox img {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+        }
     </style>
 </head>
 
-<body class="dark-mode">
-    <div class="theme-selector">
-        <select id="theme-select" onchange="changeTheme()">
-            <option value="dark">Dark</option>
-            <option value="light">Light</option>
-        </select>
-    </div>
+<body>
     <div class="container">
-        <div class="name-header">
-            <h1>Shant Manoukian</h1>
-            <img src="michigan-logo.jpg" alt="University of Michigan" class="michigan-logo">
-        </div>
+        <h1>Shant Manoukian</h1>
 
         <div class="subtitle">
-            Computer Engineering student at <span class="michigan-highlight">University of Michigan</span>
+            Computer Engineering student at the <span class="michigan-highlight">University of Michigan</span>
         </div>
-
-        <img src="headshot.jpg" alt="Shant Manoukian" class="headshot">
 
         <div class="contact-line social-links-line">
             <a href="https://github.com/shantrm" target="_blank">github</a> |
@@ -90,34 +71,35 @@
             <a href="projects.html">projects</a>
             <a href="work.html">work</a>
             <a href="personal.html">personal</a>
-            <a href="snake.html">play my old <span class="snake-highlight">snake game</span>!</a>
+            <a href="snake.html">play my old snake game!</a>
+        </div>
+
+        <div class="me-section">
+            <img src="me.jpeg" alt="Me" class="me-image" onclick="openLightbox(this)" style="cursor: pointer;">
+            <p class="me-caption">me :)</p>
         </div>
     </div>
 
+    <div id="lightbox" class="lightbox" onclick="closeLightbox()">
+        <img id="lightbox-img" src="" alt="">
+    </div>
+
     <script>
-        function changeTheme() {
-            const theme = document.getElementById('theme-select').value;
-            const body = document.body;
-
-            // Remove all theme classes
-            body.classList.remove('dark-mode', 'light-mode');
-
-            // Add selected theme class
-            body.classList.add(theme + '-mode');
-
-            // Save theme preference
-            localStorage.setItem('theme', theme);
+        function openLightbox(imgElement) {
+            const lightbox = document.getElementById('lightbox');
+            const lightboxImg = document.getElementById('lightbox-img');
+            lightboxImg.src = imgElement.src;
+            lightbox.style.display = 'flex';
         }
 
-        // Load saved theme
-        window.addEventListener('load', function () {
-            const savedTheme = localStorage.getItem('theme') || 'dark';
-            const select = document.getElementById('theme-select');
-            const body = document.body;
+        function closeLightbox() {
+            document.getElementById('lightbox').style.display = 'none';
+        }
 
-            select.value = savedTheme;
-            body.classList.remove('dark-mode', 'light-mode');
-            body.classList.add(savedTheme + '-mode');
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                closeLightbox();
+            }
         });
     </script>
 </body>
