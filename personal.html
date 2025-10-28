@@ -4,66 +4,162 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Personal - Your Name</title>
+    <title>Shant Manoukian - Personal</title>
+    <link rel="icon" type="image/png" href="icon.png">
     <link rel="stylesheet" href="style.css">
+    <style>
+        /* Lightbox styles */
+        .lightbox {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .lightbox.active {
+            display: flex;
+        }
+
+        .lightbox img {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+        }
+
+        .photo-item img {
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .photo-item img:hover {
+            transform: scale(1.05);
+        }
+    </style>
 </head>
 
 <body>
     <div class="container">
-        <header class="page-header">
+        <div class="header">
             <h1>Personal</h1>
-            <a href="index.html" class="back-link">← Back to Home</a>
-        </header>
-
-        <section class="content-section">
-            <h2>Hobbies & Interests</h2>
-
-            <div class="hobby-item">
-                <h3>📸 Photography</h3>
-                <p>I love capturing moments and exploring the world through my lens.</p>
+            <div class="nav-links">
+                <a href="index.html">home</a> |
+                <a href="projects.html">projects</a> |
+                <a href="work.html">work</a>
             </div>
+        </div>
 
-            <div class="hobby-item">
-                <h3>🎵 Music</h3>
-                <p>Playing instruments and discovering new artists.</p>
-            </div>
 
-            <div class="hobby-item">
-                <h3>✈️ Travel</h3>
-                <p>Exploring new places and experiencing different cultures.</p>
-            </div>
+        <div class="section">
+            <div class="section-title">Interests & Hobbies</div>
+            <ul>
+                <li>Thrifting and Sustainability - Love finding pieces of clothes or furniture that have already lived a
+                    life before me. Adds a fun element!</li>
+                <li>Politics and Current Events - Super interested in what's going on in the world and how it affects
+                    our lives. Or maybe I'm just nosey...</li>
+                <li>Video Games - College has unfortunately sucked away my gaming time, but I'm a massive Mario Kart and
+                    Soulslike fan. Ask me about any indie game, I've probably played it!</li>
+                <li>Photography - I love to use niche digital cameras to try and capture things through my eyes. The
+                    worse the camera, the more fun I have with it!</li>
+            </ul>
+        </div>
 
-            <h2 style="margin-top: 3rem;">Photo Gallery</h2>
-            <p class="gallery-intro">A collection of my favorite photographs</p>
+        <div class="section">
+            <div class="section-title">Photo Gallery</div>
+            <p>A collection of my favorite photographs</p>
 
             <div class="photo-gallery">
                 <div class="photo-item">
-                    <img src="photos/photo1.jpg" alt="Photo 1">
+                    <img src="photos/photo1.jpg" alt="Photo 1" onclick="openLightbox(this)">
                     <p class="photo-caption">Caption for photo 1</p>
                 </div>
                 <div class="photo-item">
-                    <img src="photos/photo2.jpg" alt="Photo 2">
+                    <img src="photos/photo2.jpg" alt="Photo 2" onclick="openLightbox(this)">
                     <p class="photo-caption">Caption for photo 2</p>
                 </div>
                 <div class="photo-item">
-                    <img src="photos/photo3.jpg" alt="Photo 3">
+                    <img src="photos/photo3.jpg" alt="Photo 3" onclick="openLightbox(this)">
                     <p class="photo-caption">Caption for photo 3</p>
                 </div>
                 <div class="photo-item">
-                    <img src="photos/photo4.jpg" alt="Photo 4">
+                    <img src="photos/photo4.jpg" alt="Photo 4" onclick="openLightbox(this)">
                     <p class="photo-caption">Caption for photo 4</p>
                 </div>
                 <div class="photo-item">
-                    <img src="photos/photo5.jpg" alt="Photo 5">
+                    <img src="photos/photo5.jpg" alt="Photo 5" onclick="openLightbox(this)">
                     <p class="photo-caption">Caption for photo 5</p>
                 </div>
                 <div class="photo-item">
-                    <img src="photos/photo6.jpg" alt="Photo 6">
+                    <img src="photos/photo6.jpg" alt="Photo 6" onclick="openLightbox(this)">
                     <p class="photo-caption">Caption for photo 6</p>
                 </div>
+                <div class="photo-item">
+                    <img src="photos/photo7.jpg" alt="Photo 7" onclick="openLightbox(this)">
+                    <p class="photo-caption">Caption for photo 7</p>
+                </div>
+                <div class="photo-item">
+                    <img src="photos/photo8.jpg" alt="Photo 8" onclick="openLightbox(this)">
+                    <p class="photo-caption">Caption for photo 8</p>
+                </div>
+                <div class="photo-item">
+                    <img src="photos/photo9.jpg" alt="Photo 9" onclick="openLightbox(this)">
+                    <p class="photo-caption">Caption for photo 9</p>
+                </div>
+                <div class="photo-item">
+                    <img src="photos/photo10.jpg" alt="Photo 10" onclick="openLightbox(this)">
+                    <p class="photo-caption">Caption for photo 10</p>
+                </div>
+                <div class="photo-item">
+                    <img src="photos/photo11.jpg" alt="Photo 11" onclick="openLightbox(this)">
+                    <p class="photo-caption">Caption for photo 11</p>
+                </div>
+                <div class="photo-item">
+                    <img src="photos/photo12.jpg" alt="Photo 12" onclick="openLightbox(this)">
+                    <p class="photo-caption">Caption for photo 12</p>
+                </div>
             </div>
-        </section>
+        </div>
     </div>
+
+    <!-- Lightbox Modal -->
+    <div class="lightbox" id="lightbox" onclick="closeLightbox()">
+        <img id="lightbox-img" src="" alt="">
+    </div>
+
+    <script>
+        function openLightbox(imgElement) {
+            const lightbox = document.getElementById('lightbox');
+            const lightboxImg = document.getElementById('lightbox-img');
+
+            lightboxImg.src = imgElement.src;
+            lightboxImg.alt = imgElement.alt;
+            lightbox.classList.add('active');
+
+            // Prevent body scroll when lightbox is open
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeLightbox() {
+            const lightbox = document.getElementById('lightbox');
+            lightbox.classList.remove('active');
+
+            // Re-enable body scroll
+            document.body.style.overflow = 'auto';
+        }
+
+        // Close lightbox on Escape key
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                closeLightbox();
+            }
+        });
+    </script>
 </body>
 
 </html>

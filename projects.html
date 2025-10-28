@@ -4,48 +4,66 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Projects - Your Name</title>
+    <title>Shant Manoukian - Projects</title>
+    <link rel="icon" type="image/png" href="icon.png">
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
     <div class="container">
-        <header class="page-header">
+        <div class="header">
             <h1>Projects</h1>
-            <a href="index.html" class="back-link">← Back to Home</a>
-        </header>
-
-        <section class="content-section">
-            <div class="project-item">
-                <h3>Project Title 1</h3>
-                <p class="project-meta">Technology Stack • Date</p>
-                <p>Brief description of your project. What problem does it solve? What technologies did you use?</p>
-                <div class="project-links">
-                    <a href="#" class="btn-secondary">View Demo</a>
-                    <a href="#" class="btn-secondary">Source Code</a>
-                </div>
+            <div class="nav-links">
+                <a href="index.html">home</a> |
+                <a href="work.html">work</a> |
+                <a href="personal.html">personal</a>
             </div>
+        </div>
 
-            <div class="project-item">
-                <h3>Project Title 2</h3>
-                <p class="project-meta">Technology Stack • Date</p>
-                <p>Brief description of your project. What problem does it solve? What technologies did you use?</p>
-                <div class="project-links">
-                    <a href="#" class="btn-secondary">View Demo</a>
-                    <a href="#" class="btn-secondary">Source Code</a>
-                </div>
+        <div class="project">
+            <div class="project-title">
+                Stock Market Simulator
             </div>
+            <div class="project-description">
+                <ul>
+                    <li>Devised an electronic stock exchange simulation in C++ leveraging priority queues and heaps to
+                        process and match buy/sell orders efficiently based on trader intent, price, and timestamps</li>
+                    <li>Formulated algorithms to handle multiple input modes (trade list and pseudorandom), processing
+                        orders with median price calculation, trading logs, and participant summaries</li>
+                </ul>
+            </div>
+        </div>
 
-            <div class="project-item">
-                <h3>Project Title 3</h3>
-                <p class="project-meta">Technology Stack • Date</p>
-                <p>Brief description of your project. What problem does it solve? What technologies did you use?</p>
-                <div class="project-links">
-                    <a href="#" class="btn-secondary">View Demo</a>
-                    <a href="#" class="btn-secondary">Source Code</a>
-                </div>
+        <div class="project">
+            <div class="project-title">
+                Four-Function Calculator on DE2-115 FPGA
             </div>
-        </section>
+            <div class="project-description">
+                <ul>
+                    <li>Constructed a four-function calculator on the DE2-115 FPGA board, applying RTL design concepts
+                        and Verilog to perform addition, subtraction, multiplication, and division of 11-bit two's
+                        complement integers</li>
+                    <li>Composed datapath and control logic modules, integrating adders/subtractors, multiplexers, and
+                        registers to ensure accurate computation. Utilized ModelSim for verification and debugging</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="project">
+            <div class="project-title">
+                Discord Chat Retriever Bot
+            </div>
+            <div class="project-description">
+                <ul>
+                    <li>Programmed a Discord bot using discord.py and asynchronous commands to fetch, embed, and
+                        randomize messages and images from server channels</li>
+                    <li>Established persistent uptime hosting through a Flask-based keep-alive server and secure token
+                        handling with dotenv</li>
+                    <li>Applied Python libraries (asyncio, numpy, bisect) for randomized message sampling, achieving
+                        responsive retrieval for 10k+ messages</li>
+                </ul>
+            </div>
+        </div>
     </div>
 </body>
 

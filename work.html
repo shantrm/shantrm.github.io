@@ -4,61 +4,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Work Experience - Your Name</title>
+    <title>Shant Manoukian - Work</title>
+    <link rel="icon" type="image/png" href="icon.png">
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
     <div class="container">
-        <header class="page-header">
+        <div class="header">
             <h1>Work Experience & Education</h1>
-            <a href="index.html" class="back-link">← Back to Home</a>
-        </header>
+            <div class="nav-links">
+                <a href="index.html">home</a> |
+                <a href="projects.html">projects</a> |
+                <a href="personal.html">personal</a>
+            </div>
+        </div>
 
-        <section class="content-section">
-            <h2>Work Experience</h2>
+        <div class="section">
+            <div class="section-title">Work Experience</div>
 
-            <div class="experience-item">
-                <div class="experience-header">
-                    <h3>Job Title</h3>
-                    <span class="date">Start Date - End Date</span>
+            <div class="work-item">
+                <div class="work-header">
+                    <span class="job-title">Software Engineering Intern</span>
+                    <span class="date">June 2025 - Aug. 2025</span>
                 </div>
-                <p class="company">Company Name • Location</p>
-                <ul class="experience-details">
-                    <li>Key accomplishment or responsibility</li>
-                    <li>Key accomplishment or responsibility</li>
-                    <li>Key accomplishment or responsibility</li>
+                <div class="company">TalentNeuron • Remote</div>
+                <ul>
+                    <li>Built a modular Python pipeline to assess TalentNeuron's skill extraction algorithm against
+                        ChatGPT across 4,000+ job postings, adding an additional 1000+ new terms to the database to
+                        improve skill extraction</li>
+                    <li>Architected a batch-based OpenAI workflow that partitioned and submitted descriptions via the
+                        Batch API, standardized outputs, and consolidated structured data automatically</li>
+                    <li>Integrated fuzzy string matching and REST API queries to cross-verify skills, applying
+                        Levenshtein distance metrics and autocomplete-based enrichment from internal TN services</li>
+                    <li>Added caching, retry, and exponential backoff mechanisms for efficient processing and fault
+                        resilience across thousands of API interactions</li>
+                    <li>Produced detailed CSV reports and analytical dashboards quantifying exact, fuzzy, and semantic
+                        matches; presented findings and optimization insights to the Executive Team</li>
                 </ul>
             </div>
 
-            <div class="experience-item">
-                <div class="experience-header">
-                    <h3>Job Title</h3>
-                    <span class="date">Start Date - End Date</span>
+            <div class="work-item">
+                <div class="work-header">
+                    <span class="job-title">Web Developer</span>
+                    <span class="date">Feb. 2025 - Present</span>
                 </div>
-                <p class="company">Company Name • Location</p>
-                <ul class="experience-details">
-                    <li>Key accomplishment or responsibility</li>
-                    <li>Key accomplishment or responsibility</li>
-                    <li>Key accomplishment or responsibility</li>
+                <div class="company">The Michigan Daily • Ann Arbor, MI</div>
+                <ul>
+                    <li>Maintain and enhance web applications for The Michigan Daily, including platforms for special
+                        editions and internal newsroom utilities, employing modern web frameworks</li>
+                    <li>Apply React.js, Svelte, SCSS, and Parcel to craft dynamic front-end experiences. Work with React
+                        Native for mobile implementation</li>
+                    <li>Partner with editorial, design, and business divisions to meet technical needs and suggest new
+                        initiatives enhancing The Daily's online presence</li>
                 </ul>
             </div>
 
-            <h2 style="margin-top: 3rem;">Education</h2>
-
-            <div class="experience-item">
-                <div class="experience-header">
-                    <h3>Degree Name</h3>
-                    <span class="date">Graduation Date</span>
+            <div class="work-item">
+                <div class="work-header">
+                    <span class="job-title">App Developer</span>
+                    <span class="date">July 2025 - Aug. 2025</span>
                 </div>
-                <p class="company">University Name • Location</p>
-                <ul class="experience-details">
-                    <li>Major/Field of Study</li>
-                    <li>Relevant coursework or achievements</li>
-                    <li>GPA, honors, or awards (optional)</li>
+                <div class="company">KTP • Ann Arbor, MI</div>
+                <ul>
+                    <li>Contributed to the creation of KTP Life, a web app for scheduling coffee chats, tracking brother
+                        points, and managing events used by 100+ members of a professional technology fraternity</li>
+                    <li>Engineered the front end with React.js, styling components via Material UI to deliver a
+                        responsive and intuitive interface</li>
+                    <li>Collaborated with a UX designer in Figma to prototype a "KTP Superlatives" feature</li>
                 </ul>
             </div>
-        </section>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Education</div>
+
+            <div class="work-item">
+                <div class="work-header">
+                    <span class="job-title">Bachelor of Science in Engineering, Computer Engineering</span>
+                    <span class="date">Aug. 2023 - May 2027</span>
+                </div>
+                <div class="company">University of Michigan • Ann Arbor, MI</div>
+                <ul>
+                    <li>Relevant Coursework: Data Structures and Algorithms, Embedded Systems, Computer Organization,
+                        Logic Design, Calculus I-III, Electronic Circuits, Systems and Signals</li>
+                    <li>Professional Involvement: KTP Professional Technology Fraternity, Armenian Students' Cultural
+                        Association</li>
+                </ul>
+            </div>
+        </div>
     </div>
 </body>
 

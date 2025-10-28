@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake Game</title>
+    <link rel="icon" type="image/png" href="icon.png">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: black;
+        }
+
+        #gameContainer {
+            text-align: center;
+        }
+
+        canvas {
+            border: 2px solid white;
+            display: block;
+            margin: 20px auto;
+            cursor: pointer;
+        }
+
+        .back-link {
+            display: block;
+            margin-top: 20px;
+            color: white;
+            text-decoration: none;
+            font-family: 'Courier New', monospace;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="608" height="480"></canvas>
+        <a href="index.html" class="back-link">← Back to Home</a>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Colors matching Python version
+        const BLACK = '#000000';
+        const RED = '#FF0000';
+        const ORANGE = '#FFA500';
+        const YELLOW = '#E1FF00';
+        const GREEN = '#00FF00';
+        const DARKGREEN = '#008000';
+        const BLUE = '#0000FF';
+        const GRAY = '#C8C8C8';
+        const WHITE = '#FFFFFF';
+        const PURPLE = '#FF00FF';
+
+        // Game settings
+        let snakeColor = YELLOW;
+        let speed = 30;
+        let currentScreen = 'start';
+        let score = 0;
+        let snakeList = [];
+        let snakeLength = 1;
+        let snakeX = 304;
+        let snakeY = 240;
+        let snakeXChange = 0;
+        let snakeYChange = 0;
+        let direction = 100;
+        let foodX = 0;
+        let foodY = 0;
+        let gameInterval = null;
+        let usernameInput = '';
+        let scoreSubmitted = false;
+
+        // Highscore data (stored in localStorage)
+        let userList = [];
+        let scoreList = [];
+
+        // Load highscores from localStorage
+        function loadHighscores() {
+            const users = localStorage.getItem('snakeUsers');
+            const scores = localStorage.getItem('snakeScores');
+            userList = users ? JSON.parse(users) : [];
+            scoreList = scores ? JSON.parse(scores) : [];
+        }
+
+        // Save highscores to localStorage
+        function saveHighscores() {
+            localStorage.setItem('snakeUsers', JSON.stringify(userList));
+            localStorage.setItem('snakeScores', JSON.stringify(scoreList));
+        }
+
+        // Button class (matching Python button class)
+        class Button {
+            constructor(color, x, y, width, height, text = '') {
+                this.color = color;
+                this.x = x;
+                this.y = y;
+                this.width = width;
+                this.height = height;
+                this.text = text;
+                this.hoverColor = color;
+            }
+
+            draw() {
+                // Draw button
+                ctx.fillStyle = this.color;
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+                ctx.strokeStyle = BLACK;
+                ctx.lineWidth = 2;
+                ctx.strokeRect(this.x, this.y, this.width, this.height);
+
+                // Draw text
+                if (this.text) {
+                    // Use larger font for title
+                    if (this.text === 'Snake Game!') {
+                        ctx.fillStyle = WHITE;
+                        ctx.font = 'bold 72px Arial';
+                    } else {
+                        ctx.fillStyle = BLACK;
+                        ctx.font = 'bold 45px Arial';
+                    }
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(this.text, this.x + this.width / 2, this.y + this.height / 2);
+                }
+            }
+
+            isOver(mouseX, mouseY) {
+                return mouseX > this.x && mouseX < this.x + this.width &&
+                    mouseY > this.y && mouseY < this.y + this.height;
+            }
+        }
+
+        // Buttons for different screens
+        let titleButton = new Button(RED, 70, 70, 475, 80, 'Snake Game!');
+        let startButton = new Button(GREEN, 320, 225, 250, 100, 'Start');
+        let scoreButton = new Button(YELLOW, 40, 225, 250, 100, 'Highscore');
+        let quitButton = new Button(GRAY, 485, 430, 125, 50, 'Quit');
+        let settingButton = new Button(BLACK, 0, 360, 121, 118, '');
+        let backButton = new Button(GRAY, 483, 430, 125, 50, 'Back');
+        let homeButton = new Button(GRAY, 483, 430, 125, 50, 'Home');
+        let retryButton = new Button(GRAY, 0, 430, 125, 50, 'Retry');
+        let submitButton = new Button(GREEN, 230, 312, 160, 50, 'Submit');
+
+        // Color buttons for settings
+        let redBtn = new Button(RED, 100, 120, 50, 50, '');
+        let orangeBtn = new Button(ORANGE, 168, 120, 50, 50, '');
+        let yellowBtn = new Button(YELLOW, 240, 120, 50, 50, '');
+        let greenBtn = new Button(GREEN, 313, 120, 50, 50, '');
+        let blueBtn = new Button(BLUE, 385, 120, 50, 50, '');
+        let purpleBtn = new Button(PURPLE, 458, 120, 50, 50, '');
+
+        // Speed buttons
+        let moreBtn = new Button(WHITE, 385, 300, 50, 50, '+');
+        let lessBtn = new Button(WHITE, 168, 300, 50, 50, '-');
+
+        // Initialize game
+        function init() {
+            drawStartScreen();
+
+            loadHighscores();
+
+            // Mouse event listeners
+            canvas.addEventListener('click', handleClick);
+            canvas.addEventListener('mousemove', handleMouseMove);
+
+            // Keyboard event listeners
+            document.addEventListener('keydown', handleKeyDown);
+        }
+
+        // Handle mouse clicks
+        function handleClick(e) {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            if (currentScreen === 'start') {
+                if (startButton.isOver(mouseX, mouseY)) {
+                    startGame();
+                } else if (scoreButton.isOver(mouseX, mouseY)) {
+                    showScoreScreen();
+                } else if (quitButton.isOver(mouseX, mouseY)) {
+                    window.location.href = 'index.html';
+                } else if (settingButton.isOver(mouseX, mouseY)) {
+                    showSettingsScreen();
+                }
+            } else if (currentScreen === 'score') {
+                if (backButton.isOver(mouseX, mouseY)) {
+                    drawStartScreen();
+                }
+            } else if (currentScreen === 'settings') {
+                if (backButton.isOver(mouseX, mouseY)) {
+                    drawStartScreen();
+                } else if (redBtn.isOver(mouseX, mouseY)) {
+                    snakeColor = RED;
+                    showSettingsScreen();
+                } else if (orangeBtn.isOver(mouseX, mouseY)) {
+                    snakeColor = ORANGE;
+                    showSettingsScreen();
+                } else if (yellowBtn.isOver(mouseX, mouseY)) {
+                    snakeColor = YELLOW;
+                    showSettingsScreen();
+                } else if (greenBtn.isOver(mouseX, mouseY)) {
+                    snakeColor = GREEN;
+                    showSettingsScreen();
+                } else if (blueBtn.isOver(mouseX, mouseY)) {
+                    snakeColor = BLUE;
+                    showSettingsScreen();
+                } else if (purpleBtn.isOver(mouseX, mouseY)) {
+                    snakeColor = PURPLE;
+                    showSettingsScreen();
+                } else if (moreBtn.isOver(mouseX, mouseY)) {
+                    if (speed === 90) {
+                        // Max speed
+                    } else if (speed === 15) {
+                        speed = 30;
+                    } else {
+                        speed += 30;
+                    }
+                    showSettingsScreen();
+                } else if (lessBtn.isOver(mouseX, mouseY)) {
+                    if (speed === 30) {
+                        speed = 15;
+                    } else if (speed === 15) {
+                        // Min speed
+                    } else {
+                        speed -= 30;
+                    }
+                    showSettingsScreen();
+                }
+            } else if (currentScreen === 'gameover') {
+                if (homeButton.isOver(mouseX, mouseY)) {
+                    drawStartScreen();
+                } else if (retryButton.isOver(mouseX, mouseY)) {
+                    startGame();
+                } else if (submitButton.isOver(mouseX, mouseY) && !scoreSubmitted && usernameInput.trim() !== '') {
+                    submitScore();
+                }
+            }
+        }
+
+        // Handle mouse movement for hover effects
+        function handleMouseMove(e) {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            if (currentScreen === 'start') {
+                let newStartColor = startButton.isOver(mouseX, mouseY) ? RED : GREEN;
+                let newScoreColor = scoreButton.isOver(mouseX, mouseY) ? BLUE : YELLOW;
+                let newQuitColor = quitButton.isOver(mouseX, mouseY) ? WHITE : GRAY;
+
+                // Only redraw if colors changed
+                if (startButton.color !== newStartColor || scoreButton.color !== newScoreColor || quitButton.color !== newQuitColor) {
+                    startButton.color = newStartColor;
+                    scoreButton.color = newScoreColor;
+                    quitButton.color = newQuitColor;
+
+                    // Clear and redraw only the buttons
+                    ctx.fillStyle = BLACK;
+                    ctx.fillRect(startButton.x, startButton.y, startButton.width, startButton.height);
+                    ctx.fillRect(scoreButton.x, scoreButton.y, scoreButton.width, scoreButton.height);
+                    ctx.fillRect(quitButton.x, quitButton.y, quitButton.width, quitButton.height);
+
+                    startButton.draw();
+                    scoreButton.draw();
+                    quitButton.draw();
+                }
+            } else if (currentScreen === 'score') {
+                let newBackColor = backButton.isOver(mouseX, mouseY) ? WHITE : GRAY;
+                if (backButton.color !== newBackColor) {
+                    backButton.color = newBackColor;
+                    ctx.fillStyle = BLACK;
+                    ctx.fillRect(backButton.x, backButton.y, backButton.width, backButton.height);
+                    backButton.draw();
+                }
+            } else if (currentScreen === 'settings') {
+                let newBackColor = backButton.isOver(mouseX, mouseY) ? WHITE : GRAY;
+                let newMoreColor = moreBtn.isOver(mouseX, mouseY) ? GRAY : WHITE;
+                let newLessColor = lessBtn.isOver(mouseX, mouseY) ? GRAY : WHITE;
+
+                if (backButton.color !== newBackColor || moreBtn.color !== newMoreColor || lessBtn.color !== newLessColor) {
+                    backButton.color = newBackColor;
+                    moreBtn.color = newMoreColor;
+                    lessBtn.color = newLessColor;
+
+                    // Clear button areas
+                    ctx.fillStyle = BLACK;
+                    ctx.fillRect(moreBtn.x, moreBtn.y, moreBtn.width, moreBtn.height);
+                    ctx.fillRect(lessBtn.x, lessBtn.y, lessBtn.width, lessBtn.height);
+                    ctx.fillRect(backButton.x, backButton.y, backButton.width, backButton.height);
+
+                    moreBtn.draw();
+                    lessBtn.draw();
+                    backButton.draw();
+                }
+            } else if (currentScreen === 'gameover') {
+                let newHomeColor = homeButton.isOver(mouseX, mouseY) ? WHITE : GRAY;
+                let newRetryColor = retryButton.isOver(mouseX, mouseY) ? WHITE : GRAY;
+
+                if (homeButton.color !== newHomeColor || retryButton.color !== newRetryColor) {
+                    homeButton.color = newHomeColor;
+                    retryButton.color = newRetryColor;
+
+                    // Clear button areas
+                    ctx.fillStyle = BLACK;
+                    ctx.fillRect(homeButton.x, homeButton.y, homeButton.width, homeButton.height);
+                    ctx.fillRect(retryButton.x, retryButton.y, retryButton.width, retryButton.height);
+
+                    homeButton.draw();
+                    retryButton.draw();
+                }
+            }
+        }
+
+        // Handle keyboard input
+        function handleKeyDown(e) {
+            if (currentScreen === 'game') {
+                if (e.key === 'ArrowLeft' && direction !== 1) {
+                    direction = 3;
+                    snakeXChange = -10;
+                    snakeYChange = 0;
+                } else if (e.key === 'ArrowRight' && direction !== 3) {
+                    direction = 1;
+                    snakeXChange = 10;
+                    snakeYChange = 0;
+                } else if (e.key === 'ArrowUp' && direction !== 4) {
+                    direction = 2;
+                    snakeYChange = -10;
+                    snakeXChange = 0;
+                } else if (e.key === 'ArrowDown' && direction !== 2) {
+                    direction = 4;
+                    snakeYChange = 10;
+                    snakeXChange = 0;
+                }
+            } else if (currentScreen === 'gameover') {
+                if (e.key === 'Backspace') {
+                    usernameInput = usernameInput.slice(0, -1);
+                    drawGameOverScreen();
+                } else if (e.key.length === 1 && usernameInput.length < 15) {
+                    usernameInput += e.key;
+                    drawGameOverScreen();
+                }
+            }
+        }
+
+        // Draw settings icon (simple gear)
+        function drawSettingsIcon() {
+            ctx.fillStyle = GRAY;
+            ctx.font = 'bold 80px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('⚙', 60, 419);
+        }
+
+        // Draw start screen
+        function drawStartScreen() {
+            currentScreen = 'start';
+            ctx.fillStyle = BLACK;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Title button
+            titleButton.draw();
+
+            // Buttons
+            startButton.draw();
+            scoreButton.draw();
+            quitButton.draw();
+            settingButton.draw();
+            drawSettingsIcon();
+        }
+
+        // Show settings screen
+        function showSettingsScreen() {
+            currentScreen = 'settings';
+            ctx.fillStyle = BLACK;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Title for colors
+            ctx.fillStyle = WHITE;
+            ctx.font = 'bold 50px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Colors!', 304, 60);
+
+            // Title for speed
+            ctx.fillText('Speed!', 304, 260);
+
+            // Speed number
+            let speedNum = (speed / 30) + 1;
+            if (speed === 15) speedNum = 0.5;
+            ctx.fillText(speedNum.toString(), 304, 340);
+
+            // Draw color buttons
+            redBtn.draw();
+            orangeBtn.draw();
+            yellowBtn.draw();
+            greenBtn.draw();
+            blueBtn.draw();
+            purpleBtn.draw();
+
+            // Highlight selected color
+            let selectX, selectY;
+            if (snakeColor === RED) { selectX = 95; selectY = 115; }
+            else if (snakeColor === ORANGE) { selectX = 163; selectY = 115; }
+            else if (snakeColor === YELLOW) { selectX = 235; selectY = 115; }
+            else if (snakeColor === GREEN) { selectX = 308; selectY = 115; }
+            else if (snakeColor === BLUE) { selectX = 380; selectY = 115; }
+            else if (snakeColor === PURPLE) { selectX = 453; selectY = 115; }
+
+            ctx.strokeStyle = WHITE;
+            ctx.lineWidth = 5;
+            ctx.strokeRect(selectX, selectY, 60, 60);
+
+            // Speed buttons
+            moreBtn.draw();
+            lessBtn.draw();
+
+            // Back button
+            backButton.draw();
+        }
+
+        // Show score screen
+        function showScoreScreen() {
+            currentScreen = 'score';
+            ctx.fillStyle = BLACK;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Sort scores
+            let tempUsers = [...userList];
+            let tempScores = [...scoreList];
+
+            // Combine and sort
+            let combined = tempUsers.map((user, i) => ({ user, score: tempScores[i] }));
+            combined.sort((a, b) => b.score - a.score);
+            combined = combined.slice(0, 5); // Top 5
+
+            // Update lists
+            if (combined.length > userList.length || combined.length > 5) {
+                userList = combined.map(c => c.user);
+                scoreList = combined.map(c => c.score);
+                saveHighscores();
+            }
+
+            // Title
+            ctx.fillStyle = BLUE;
+            ctx.fillRect(90, 50, 430, 80);
+            ctx.fillStyle = WHITE;
+            ctx.font = 'bold 72px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText('Highscores:', 100, 105);
+
+            // Display scores
+            ctx.font = '30px Arial';
+            let y = 160;
+            for (let i = 0; i < combined.length; i++) {
+                ctx.fillText(combined[i].user, 114, y);
+                ctx.fillText(combined[i].score.toString(), 350, y);
+                y += 40;
+            }
+
+            backButton.draw();
+        }
+
+        // Start the game
+        function startGame() {
+            currentScreen = 'game';
+            score = 0;
+            snakeList = [];
+            snakeLength = 1;
+            snakeX = 304;
+            snakeY = 240;
+            snakeXChange = 0;
+            snakeYChange = 0;
+            direction = 100;
+
+            // Random food position
+            foodX = Math.floor(Math.random() * (608 - 20));
+            foodY = Math.floor(Math.random() * (480 - 20));
+
+            // Start game loop
+            if (gameInterval) clearInterval(gameInterval);
+            gameInterval = setInterval(gameLoop, 1000 / speed);
+        }
+
+        // Game loop
+        function gameLoop() {
+            // Check wall collision
+            if (snakeX >= 608 || snakeX < 0 || snakeY >= 480 || snakeY < 0) {
+                gameOver();
+                return;
+            }
+
+            // Update position
+            snakeX += snakeXChange;
+            snakeY += snakeYChange;
+
+            // Calculate multiplier based on speed
+            let multiplier = 1;
+            if (speed === 60) multiplier = 2;
+            else if (speed === 90) multiplier = 3;
+
+            // Food color (opposite of snake)
+            let foodColor = snakeColor === RED ? YELLOW : RED;
+
+            // Draw
+            ctx.fillStyle = BLACK;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Score
+            ctx.fillStyle = WHITE;
+            ctx.font = '30px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText('Score: ' + score, 10, 35);
+
+            // Multiplier
+            ctx.textAlign = 'right';
+            ctx.fillText('Multiplier (' + multiplier + 'x)', 598, 35);
+
+            // Food
+            ctx.fillStyle = foodColor;
+            ctx.fillRect(foodX, foodY, 20, 20);
+
+            // Snake
+            let segment = [snakeX, snakeY];
+            snakeList.push(segment);
+
+            if (snakeList.length > snakeLength) {
+                snakeList.shift();
+            }
+
+            // Check self collision
+            for (let i = 0; i < snakeList.length - 1; i++) {
+                if (snakeList[i][0] === snakeX && snakeList[i][1] === snakeY) {
+                    gameOver();
+                    return;
+                }
+            }
+
+            // Draw snake
+            ctx.fillStyle = snakeColor;
+            for (let segment of snakeList) {
+                ctx.fillRect(segment[0], segment[1], 20, 20);
+            }
+
+            // Check food collision
+            if (Math.abs(snakeX - foodX) < 20 && Math.abs(snakeY - foodY) < 20) {
+                score += (1 * multiplier);
+                foodX = Math.floor(Math.random() * (608 - 20));
+                foodY = Math.floor(Math.random() * (480 - 20));
+                snakeLength += 2;
+            }
+        }
+
+        // Game over
+        function gameOver() {
+            if (gameInterval) clearInterval(gameInterval);
+            currentScreen = 'gameover';
+            usernameInput = '';
+            scoreSubmitted = false;
+            drawGameOverScreen();
+        }
+
+        // Draw game over screen
+        function drawGameOverScreen() {
+            ctx.fillStyle = BLACK;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Title
+            ctx.fillStyle = PURPLE;
+            ctx.fillRect(95, 50, 420, 80);
+            ctx.fillStyle = WHITE;
+            ctx.font = 'bold 72px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Game Over!', 304, 105);
+
+            // Score
+            ctx.font = '30px Arial';
+            ctx.fillText('Score: ' + score, 304, 180);
+
+            // Username prompt
+            ctx.fillText('Username:', 304, 230);
+
+            // Input box
+            ctx.fillStyle = WHITE;
+            ctx.fillRect(235, 255, 140, 32);
+            ctx.fillStyle = BLACK;
+            ctx.font = '20px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText(usernameInput, 175, 275);
+
+            // Submit button
+            submitButton.color = scoreSubmitted ? DARKGREEN : GREEN;
+            submitButton.draw();
+
+            // Other buttons
+            homeButton.draw();
+            retryButton.draw();
+        }
+
+        // Submit score
+        function submitScore() {
+            if (usernameInput.trim() !== '') {
+                userList.push(usernameInput.trim());
+                scoreList.push(score);
+                saveHighscores();
+                scoreSubmitted = true;
+                submitButton.color = DARKGREEN;
+                drawGameOverScreen();
+            }
+        }
+
+        // Start the game when page loads
+
+        init();
+    </script>
+</body>
+
+</html>
