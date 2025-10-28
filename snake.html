@@ -92,6 +92,13 @@
             const scores = localStorage.getItem('snakeScores');
             userList = users ? JSON.parse(users) : [];
             scoreList = scores ? JSON.parse(scores) : [];
+
+            // Add default highscore if empty
+            if (userList.length === 0 && scoreList.length === 0) {
+                userList = ['Shant'];
+                scoreList = [75];
+                saveHighscores();
+            }
         }
 
         // Save highscores to localStorage
