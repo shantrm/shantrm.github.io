@@ -7,6 +7,7 @@
     <title>Shant Manoukian</title>
     <link rel="icon" type="image/png" href="icon.png">
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
     <style>
         .snake-highlight {
             font-weight: bold;
@@ -76,7 +77,7 @@
 
         <div class="me-section">
             <img src="me.jpeg" alt="Me" class="me-image" onclick="openLightbox(this)" style="cursor: pointer;">
-            <p class="me-caption">me :)</p>
+            <p class="me-caption" onclick="playMeSound(event)" style="cursor: pointer;">me :)</p>
         </div>
     </div>
 
@@ -85,6 +86,30 @@
     </div>
 
     <script>
+        function playSound(soundFile) {
+            const audio = new Audio(soundFile);
+            audio.volume = 0.5;
+            audio.play().catch(err => console.log('Audio play failed:', err));
+        }
+
+        function playMeSound(event) {
+            // Play sound
+            playSound('me-sound.mp3');
+
+            // Get the position of the clicked element
+            const rect = event.target.getBoundingClientRect();
+            const x = (rect.left + rect.width / 2) / window.innerWidth;
+            const y = (rect.top + rect.height / 2) / window.innerHeight;
+
+            // Shoot confetti from the text position
+            confetti({
+                particleCount: 50,
+                spread: 70,
+                origin: { x: x, y: y },
+                colors: ['#FFCB05', '#00274C', '#FF0000',]
+            });
+        }
+
         function openLightbox(imgElement) {
             const lightbox = document.getElementById('lightbox');
             const lightboxImg = document.getElementById('lightbox-img');

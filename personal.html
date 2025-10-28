@@ -61,9 +61,11 @@
             <ul>
                 <li>Thrifting - Big fan of vintage clothing! </li>
                 <li> Souls Games + Sekiro <img src="sun-icon.png"
-                        style="width: 20px; height: 20px; vertical-align: middle;"> </li>
+                        style="width: 20px; height: 20px; vertical-align: middle; cursor: pointer;"
+                        onclick="playSound('sun-sound.mp3')"> </li>
                 <li> 3DS Homebrew and Retro Games - New Leaf and Tomodachi Life <img src="leaf-icon.png"
-                        style="width: 20px; height: 20px; vertical-align: middle;"> </li>
+                        style="width: 20px; height: 20px; vertical-align: middle; cursor: pointer;"
+                        onclick="playSound('leaf-sound.mp3')"> </li>
                 <li> Photography - Always trying to wrangle my camera into taking good photos (Panasonic DMC-FX3) </li>
             </ul>
         </div>
@@ -119,6 +121,12 @@
     </div>
 
     <script>
+        function playSound(soundFile) {
+            const audio = new Audio(soundFile);
+            audio.volume = 0.5;
+            audio.play().catch(err => console.log('Audio play failed:', err));
+        }
+
         function openLightbox(imgElement) {
             const lightbox = document.getElementById('lightbox');
             const lightboxImg = document.getElementById('lightbox-img');
