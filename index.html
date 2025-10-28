@@ -8,32 +8,6 @@
     <link rel="icon" type="image/png" href="icon.png">
     <link rel="stylesheet" href="style.css">
     <style>
-        .name-header {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 15px;
-        }
-
-        .michigan-logo {
-            width: 50px;
-            height: 50px;
-            object-fit: contain;
-            margin-bottom: 14px;
-            /* Adjust this value to move logo up/down */
-        }
-
-        .headshot {
-            width: 150px;
-            height: 150px;
-            border-radius: 0;
-            /* Changed from 50% to make it square */
-            object-fit: cover;
-            margin: 20px auto;
-            display: block;
-            border: 3px solid #ccc;
-        }
-
         .snake-highlight {
             font-weight: bold;
             background-color: black;
@@ -44,7 +18,6 @@
         }
 
         .michigan-highlight {
-            font-weight: bold;
             background-color: #00274C;
             /* Michigan Blue */
             color: #FFCB05;
@@ -55,34 +28,28 @@
     </style>
 </head>
 
-<body class="dark-mode">
-    <div class="theme-selector">
-        <select id="theme-select" onchange="changeTheme()">
-            <option value="dark">Dark</option>
-            <option value="light">Light</option>
-        </select>
-    </div>
+<body>
     <div class="container">
-        <div class="name-header">
-            <h1>Shant Manoukian</h1>
-            <img src="michigan-logo.jpg" alt="University of Michigan" class="michigan-logo">
-        </div>
-
-        <div class="subtitle">
-            Computer Engineering student at <span class="michigan-highlight">University of Michigan</span>
-        </div>
-
-        <img src="headshot.jpg" alt="Shant Manoukian" class="headshot">
-
-        <div class="contact-line social-links-line">
-            <a href="https://github.com/shantrm" target="_blank">github</a> |
-            <a href="https://linkedin.com/in/shantrmanoukian" target="_blank">linkedin</a>
-        </div>
-
-        <div class="contact-line contact-info-line">
-            <a href="mailto:shantrm@umich.edu">shantrm@umich.edu</a>
-            <a href="tel:+12485338644">248-533-8644</a><br>
-            <a href="https://www.google.com/maps/place/Ann+Arbor+MI" target="_blank">Ann Arbor, MI</a>
+        <div class="profile-header">
+            <div class="profile-picture">
+                <img src="profile.jpg" alt="Shant Manoukian">
+            </div>
+            <div class="profile-info">
+                <h1>Shant Manoukian</h1>
+                <div class="subtitle">
+                    Computer Engineering student at<br>
+                    <span class="michigan-highlight">University of Michigan</span>
+                </div>
+                <div class="contact-line social-links-line">
+                    <a href="https://github.com/shantrm" target="_blank">github</a> |
+                    <a href="https://linkedin.com/in/shantrmanoukian" target="_blank">linkedin</a>
+                </div>
+                <div class="contact-line contact-info-line">
+                    <a href="mailto:shantrm@umich.edu">shantrm@umich.edu</a>
+                    <a href="tel:+12485338644">248-533-8644</a><br>
+                    <a href="https://www.google.com/maps/place/Ann+Arbor+MI" target="_blank">Ann Arbor, MI</a>
+                </div>
+            </div>
         </div>
 
         <div class="links-section">
@@ -93,33 +60,6 @@
             <a href="snake.html">play my old <span class="snake-highlight">snake game</span>!</a>
         </div>
     </div>
-
-    <script>
-        function changeTheme() {
-            const theme = document.getElementById('theme-select').value;
-            const body = document.body;
-
-            // Remove all theme classes
-            body.classList.remove('dark-mode', 'light-mode');
-
-            // Add selected theme class
-            body.classList.add(theme + '-mode');
-
-            // Save theme preference
-            localStorage.setItem('theme', theme);
-        }
-
-        // Load saved theme
-        window.addEventListener('load', function () {
-            const savedTheme = localStorage.getItem('theme') || 'dark';
-            const select = document.getElementById('theme-select');
-            const body = document.body;
-
-            select.value = savedTheme;
-            body.classList.remove('dark-mode', 'light-mode');
-            body.classList.add(savedTheme + '-mode');
-        });
-    </script>
 </body>
 
 </html>

@@ -6,7 +6,7 @@
 }
 
 body {
-    font-family: 'Courier New', monospace;
+    font-family: 'Consolas', monospace;
     margin: 0;
     padding: 0;
     min-height: 100vh;
@@ -15,100 +15,67 @@ body {
     color: white;
 }
 
-/* Light Mode */
-body.light-mode {
-    background-color: rgb(241, 231, 223);
-    color: black;
-}
-
-body.light-mode .container {
-    background-color: rgba(255, 255, 255, 0.85);
-}
-
-body.light-mode h1,
-body.light-mode h2,
-body.light-mode h3,
-body.light-mode p,
-body.light-mode li,
-body.light-mode a {
-    color: black;
-}
-
-/* Dark Mode (default) */
-body.dark-mode {
-    background-color: #1a1a1a;
-    color: white;
-}
-
-body.dark-mode .container {
-    background-color: rgba(40, 40, 40, 0.85);
-}
-
-body.dark-mode h1,
-body.dark-mode h2,
-body.dark-mode h3,
-body.dark-mode p,
-body.dark-mode li,
-body.dark-mode a {
+h1,
+h2,
+h3,
+p,
+li,
+a {
     color: white;
 }
 
 .container {
-    max-width: 800px;
+    max-width: 900px;
     margin: 0 auto;
     background-color: rgba(40, 40, 40, 0.85);
     padding: 40px;
     min-height: 100vh;
 }
 
-/* Theme Selector */
-.theme-selector {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 1000;
-}
-
-.theme-selector select {
-    padding: 10px 15px;
-    background-color: rgba(0, 0, 0, 0.7);
-    color: white;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 5px;
-    cursor: pointer;
-    font-family: 'Courier New', monospace;
-    font-size: 14px;
-}
-
-.theme-selector select:hover {
-    background-color: rgba(0, 0, 0, 0.85);
-}
-
-.theme-selector select option {
-    background-color: #2a2a2a;
-    color: white;
-}
-
 /* Home Page */
+.profile-header {
+    display: flex;
+    gap: 30px;
+    align-items: flex-start;
+    margin-bottom: 40px;
+}
+
+.profile-picture {
+    flex-shrink: 0;
+}
+
+.profile-picture img {
+    width: 240px;
+    height: 240px;
+    object-fit: cover;
+    border-radius: 0;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.profile-info {
+    flex-grow: 1;
+}
+
 h1 {
     font-weight: bold;
     font-size: 2em;
     margin-bottom: 10px;
-    text-align: center;
+    text-align: left;
 }
 
 .subtitle {
-    text-align: center;
-    margin-bottom: 20px;
+    text-align: left;
+    margin-bottom: 15px;
+    font-size: 1.1em;
 }
 
 .contact-line {
-    text-align: center;
+    text-align: left;
     margin: 10px 0;
 }
 
 .contact-line a {
-    color: black;
+    color: white;
     text-decoration: none;
     margin: 0 5px;
 }
@@ -126,8 +93,8 @@ h1 {
 }
 
 .links-section a {
-    color: black;
-    text-decoration: underline;
+    color: white;
+    text-decoration: none;
 }
 
 /* Sub-pages */
@@ -136,13 +103,17 @@ h1 {
     margin-bottom: 40px;
 }
 
+.header h1 {
+    text-align: center;
+}
+
 .nav-links {
     margin-top: 15px;
 }
 
 .nav-links a {
-    color: black;
-    text-decoration: underline;
+    color: white;
+    text-decoration: none;
     margin: 0 10px;
 }
 
@@ -267,8 +238,29 @@ h1 {
         padding: 30px 15px;
     }
 
+    .profile-header {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .profile-picture img {
+        width: 200px;
+        height: 200px;
+    }
+
+    .profile-info {
+        width: 100%;
+    }
+
     h1 {
         font-size: 1.5em;
+        text-align: center;
+    }
+
+    .subtitle,
+    .contact-line {
+        text-align: center;
     }
 
     .work-header {
