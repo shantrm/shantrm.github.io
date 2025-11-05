@@ -1,5 +1,7 @@
-# Supabase config (contains API keys)
-config.js
+# Supabase config - NOTE: The anon key is safe to commit (it's public by design)
+# Only keep this in .gitignore if you want to use a different config locally
+# For GitHub Pages, you should commit config.js with your anon key
+# config.js
 
 # Profanity wordlist (contains explicit content)
 profanity.txt

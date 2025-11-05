@@ -1,9 +1,36 @@
 // API Helper Functions for Snake Game Highscores
 // This file contains functions to interact with Supabase
 
-// Load config
-const SUPABASE_URL = SUPABASE_CONFIG.url;
-const SUPABASE_KEY = SUPABASE_CONFIG.anonKey;
+// Load config (with fallback if not loaded)
+let SUPABASE_URL = '';
+let SUPABASE_KEY = '';
+
+// Initialize config when SUPABASE_CONFIG is available
+function initSupabaseConfig() {
+    if (typeof SUPABASE_CONFIG !== 'undefined' && SUPABASE_CONFIG) {
+        SUPABASE_URL = SUPABASE_CONFIG.url || '';
+        SUPABASE_KEY = SUPABASE_CONFIG.anonKey || '';
+    } else {
+        console.error('SUPABASE_CONFIG is not defined. Make sure config.js is loaded before api-helpers.js');
+    }
+}
+
+// Try to initialize immediately if config is already loaded
+// Also handle the case where config.js might not exist (e.g., on GitHub Pages if not deployed)
+(function () {
+    if (typeof SUPABASE_CONFIG !== 'undefined') {
+        initSupabaseConfig();
+    } else {
+        // Wait a bit for config.js to load (if it exists)
+        setTimeout(() => {
+            if (typeof SUPABASE_CONFIG !== 'undefined') {
+                initSupabaseConfig();
+            } else {
+                console.warn('config.js not found. Supabase features will be disabled. Make sure config.js exists with your Supabase credentials.');
+            }
+        }, 100);
+    }
+})();
 
 // Profanity wordlist - loaded from profanity.txt
 let PROFANITY_WORDS = [];
@@ -70,6 +97,15 @@ function containsProfanity(username) {
  * @returns {Promise<Array>} Array of score objects with username, score, rank, etc.
  */
 async function getTopScores(limit = 50) {
+    // Ensure config is initialized
+    if (!SUPABASE_URL || !SUPABASE_KEY) {
+        initSupabaseConfig();
+    }
+
+    if (!SUPABASE_URL || !SUPABASE_KEY) {
+        throw new Error('Supabase configuration not available. Please check config.js');
+    }
+
     try {
         const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_top_scores`, {
             method: 'POST',
@@ -100,6 +136,15 @@ async function getTopScores(limit = 50) {
  * @returns {Promise<Object>} Response object with success status and updated scores
  */
 async function submitScore(username, score) {
+    // Ensure config is initialized
+    if (!SUPABASE_URL || !SUPABASE_KEY) {
+        initSupabaseConfig();
+    }
+
+    if (!SUPABASE_URL || !SUPABASE_KEY) {
+        throw new Error('Supabase configuration not available. Please check config.js');
+    }
+
     try {
         // Basic client-side validation (server will also validate)
         if (!username || username.trim().length === 0) {
