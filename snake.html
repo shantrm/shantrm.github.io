@@ -63,6 +63,10 @@
         const GRAY = '#C8C8C8';
         const WHITE = '#FFFFFF';
         const PURPLE = '#FF00FF';
+        const RAINBOW = 'RAINBOW'; // Special value for rainbow mode
+
+        // Rainbow colors array
+        const RAINBOW_COLORS = [RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE];
 
         // Game settings
         let snakeColor = YELLOW;
@@ -85,6 +89,17 @@
         // Highscore data (stored in localStorage)
         let userList = [];
         let scoreList = [];
+
+        // Check if rainbow skin is unlocked
+        function isRainbowUnlocked() {
+            const unlocked = localStorage.getItem('snakeRainbowUnlocked');
+            return unlocked === 'true';
+        }
+
+        // Unlock rainbow skin
+        function unlockRainbow() {
+            localStorage.setItem('snakeRainbowUnlocked', 'true');
+        }
 
         // Load highscores from localStorage
         function loadHighscores() {
@@ -153,20 +168,20 @@
         let titleButton = new Button(RED, 70, 70, 475, 80, 'Snake Game!');
         let startButton = new Button(GREEN, 320, 225, 250, 100, 'Start');
         let scoreButton = new Button(YELLOW, 40, 225, 250, 100, 'Highscore');
-        let quitButton = new Button(GRAY, 485, 430, 125, 50, 'Quit');
         let settingButton = new Button(BLACK, 0, 360, 121, 118, '');
         let backButton = new Button(GRAY, 483, 430, 125, 50, 'Back');
         let homeButton = new Button(GRAY, 483, 430, 125, 50, 'Home');
         let retryButton = new Button(GRAY, 0, 430, 125, 50, 'Retry');
         let submitButton = new Button(GREEN, 230, 312, 160, 50, 'Submit');
 
-        // Color buttons for settings
-        let redBtn = new Button(RED, 100, 120, 50, 50, '');
-        let orangeBtn = new Button(ORANGE, 168, 120, 50, 50, '');
-        let yellowBtn = new Button(YELLOW, 240, 120, 50, 50, '');
-        let greenBtn = new Button(GREEN, 313, 120, 50, 50, '');
-        let blueBtn = new Button(BLUE, 385, 120, 50, 50, '');
-        let purpleBtn = new Button(PURPLE, 458, 120, 50, 50, '');
+        // Color buttons for settings (centered - 7 buttons, 50px each, 18px spacing)
+        let redBtn = new Button(RED, 75, 120, 50, 50, '');
+        let orangeBtn = new Button(ORANGE, 143, 120, 50, 50, '');
+        let yellowBtn = new Button(YELLOW, 211, 120, 50, 50, '');
+        let greenBtn = new Button(GREEN, 279, 120, 50, 50, '');
+        let blueBtn = new Button(BLUE, 347, 120, 50, 50, '');
+        let purpleBtn = new Button(PURPLE, 415, 120, 50, 50, '');
+        let rainbowBtn = new Button(GRAY, 483, 120, 50, 50, '');
 
         // Speed buttons
         let moreBtn = new Button(WHITE, 385, 300, 50, 50, '+');
@@ -197,8 +212,6 @@
                     startGame();
                 } else if (scoreButton.isOver(mouseX, mouseY)) {
                     showScoreScreen();
-                } else if (quitButton.isOver(mouseX, mouseY)) {
-                    window.location.href = 'index.html';
                 } else if (settingButton.isOver(mouseX, mouseY)) {
                     showSettingsScreen();
                 }
@@ -226,6 +239,9 @@
                     showSettingsScreen();
                 } else if (purpleBtn.isOver(mouseX, mouseY)) {
                     snakeColor = PURPLE;
+                    showSettingsScreen();
+                } else if (rainbowBtn.isOver(mouseX, mouseY) && isRainbowUnlocked()) {
+                    snakeColor = RAINBOW;
                     showSettingsScreen();
                 } else if (moreBtn.isOver(mouseX, mouseY)) {
                     if (speed === 90) {
@@ -266,23 +282,19 @@
             if (currentScreen === 'start') {
                 let newStartColor = startButton.isOver(mouseX, mouseY) ? RED : GREEN;
                 let newScoreColor = scoreButton.isOver(mouseX, mouseY) ? BLUE : YELLOW;
-                let newQuitColor = quitButton.isOver(mouseX, mouseY) ? WHITE : GRAY;
 
                 // Only redraw if colors changed
-                if (startButton.color !== newStartColor || scoreButton.color !== newScoreColor || quitButton.color !== newQuitColor) {
+                if (startButton.color !== newStartColor || scoreButton.color !== newScoreColor) {
                     startButton.color = newStartColor;
                     scoreButton.color = newScoreColor;
-                    quitButton.color = newQuitColor;
 
                     // Clear and redraw only the buttons
                     ctx.fillStyle = BLACK;
                     ctx.fillRect(startButton.x, startButton.y, startButton.width, startButton.height);
                     ctx.fillRect(scoreButton.x, scoreButton.y, scoreButton.width, scoreButton.height);
-                    ctx.fillRect(quitButton.x, quitButton.y, quitButton.width, quitButton.height);
 
                     startButton.draw();
                     scoreButton.draw();
-                    quitButton.draw();
                 }
             } else if (currentScreen === 'score') {
                 let newBackColor = backButton.isOver(mouseX, mouseY) ? WHITE : GRAY;
@@ -383,7 +395,6 @@
             // Buttons
             startButton.draw();
             scoreButton.draw();
-            quitButton.draw();
             settingButton.draw();
             drawSettingsIcon();
         }
@@ -404,7 +415,7 @@
             ctx.fillText('Speed!', 304, 260);
 
             // Speed number
-            let speedNum = (speed / 30) + 1;
+            let speedNum = speed / 30;
             if (speed === 15) speedNum = 0.5;
             ctx.fillText(speedNum.toString(), 304, 340);
 
@@ -416,14 +427,41 @@
             blueBtn.draw();
             purpleBtn.draw();
 
+            // Draw rainbow button if unlocked
+            if (isRainbowUnlocked()) {
+                // Draw rainbow gradient effect for the button
+                const gradient = ctx.createLinearGradient(483, 120, 533, 170);
+                gradient.addColorStop(0, RED);
+                gradient.addColorStop(0.2, ORANGE);
+                gradient.addColorStop(0.4, YELLOW);
+                gradient.addColorStop(0.6, GREEN);
+                gradient.addColorStop(0.8, BLUE);
+                gradient.addColorStop(1, PURPLE);
+                ctx.fillStyle = gradient;
+                ctx.fillRect(483, 120, 50, 50);
+                ctx.strokeStyle = BLACK;
+                ctx.lineWidth = 2;
+                ctx.strokeRect(483, 120, 50, 50);
+            } else {
+                // Draw locked rainbow button
+                rainbowBtn.color = DARKGREEN;
+                rainbowBtn.draw();
+                // Draw lock symbol
+                ctx.fillStyle = WHITE;
+                ctx.font = 'bold 30px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('🔒', 508, 150);
+            }
+
             // Highlight selected color
             let selectX, selectY;
-            if (snakeColor === RED) { selectX = 95; selectY = 115; }
-            else if (snakeColor === ORANGE) { selectX = 163; selectY = 115; }
-            else if (snakeColor === YELLOW) { selectX = 235; selectY = 115; }
-            else if (snakeColor === GREEN) { selectX = 308; selectY = 115; }
-            else if (snakeColor === BLUE) { selectX = 380; selectY = 115; }
-            else if (snakeColor === PURPLE) { selectX = 453; selectY = 115; }
+            if (snakeColor === RED) { selectX = 70; selectY = 115; }
+            else if (snakeColor === ORANGE) { selectX = 138; selectY = 115; }
+            else if (snakeColor === YELLOW) { selectX = 206; selectY = 115; }
+            else if (snakeColor === GREEN) { selectX = 274; selectY = 115; }
+            else if (snakeColor === BLUE) { selectX = 342; selectY = 115; }
+            else if (snakeColor === PURPLE) { selectX = 410; selectY = 115; }
+            else if (snakeColor === RAINBOW) { selectX = 478; selectY = 115; }
 
             ctx.strokeStyle = WHITE;
             ctx.lineWidth = 5;
@@ -485,8 +523,8 @@
             score = 0;
             snakeList = [];
             snakeLength = 1;
-            snakeX = 304;
-            snakeY = 240;
+            snakeX = 350;
+            snakeY = 290;
             snakeXChange = 0;
             snakeYChange = 0;
             direction = 100;
@@ -555,9 +593,18 @@
             }
 
             // Draw snake
-            ctx.fillStyle = snakeColor;
-            for (let segment of snakeList) {
-                ctx.fillRect(segment[0], segment[1], 20, 20);
+            if (snakeColor === RAINBOW) {
+                // Draw each segment in rainbow colors
+                for (let i = 0; i < snakeList.length; i++) {
+                    const colorIndex = i % RAINBOW_COLORS.length;
+                    ctx.fillStyle = RAINBOW_COLORS[colorIndex];
+                    ctx.fillRect(snakeList[i][0], snakeList[i][1], 20, 20);
+                }
+            } else {
+                ctx.fillStyle = snakeColor;
+                for (let segment of snakeList) {
+                    ctx.fillRect(segment[0], segment[1], 20, 20);
+                }
             }
 
             // Check food collision
@@ -575,11 +622,19 @@
             currentScreen = 'gameover';
             usernameInput = '';
             scoreSubmitted = false;
-            drawGameOverScreen();
+
+            // Unlock rainbow skin if score >= 20
+            let justUnlocked = false;
+            if (score >= 20 && !isRainbowUnlocked()) {
+                unlockRainbow();
+                justUnlocked = true;
+            }
+
+            drawGameOverScreen(justUnlocked);
         }
 
         // Draw game over screen
-        function drawGameOverScreen() {
+        function drawGameOverScreen(justUnlocked = false) {
             ctx.fillStyle = BLACK;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -595,19 +650,31 @@
             ctx.font = '30px Arial';
             ctx.fillText('Score: ' + score, 304, 180);
 
-            // Username prompt
-            ctx.fillText('Username:', 304, 230);
+            // Show unlock message if rainbow was just unlocked
+            if (justUnlocked) {
+                ctx.fillStyle = YELLOW;
+                ctx.font = 'bold 24px Arial';
+                ctx.fillText('New skin unlocked!', 304, 210);
+                ctx.fillStyle = WHITE;
+            }
 
-            // Input box
+            // Username prompt
+            ctx.font = '30px Arial';
+            ctx.fillText('Username:', 304, 240);
+
+            // Input box (centered)
+            const inputBoxWidth = 230;
+            const inputBoxX = (canvas.width - inputBoxWidth) / 2;
             ctx.fillStyle = WHITE;
-            ctx.fillRect(235, 255, 140, 32);
+            ctx.fillRect(inputBoxX, 265, inputBoxWidth, 32);
             ctx.fillStyle = BLACK;
             ctx.font = '20px Arial';
             ctx.textAlign = 'left';
-            ctx.fillText(usernameInput, 175, 275);
+            ctx.fillText(usernameInput, inputBoxX + 5, 285);
 
-            // Submit button
+            // Submit button (centered)
             submitButton.color = scoreSubmitted ? DARKGREEN : GREEN;
+            submitButton.x = (canvas.width - submitButton.width) / 2;
             submitButton.draw();
 
             // Other buttons
