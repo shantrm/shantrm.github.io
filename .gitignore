@@ -1,0 +1,22 @@
+# Supabase config (contains API keys)
+config.js
+
+# Profanity wordlist (contains explicit content)
+profanity.txt
+
+# Node modules (if you use the Express server)
+node_modules/
+api/node_modules/
+
+# Environment variables
+.env
+.env.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+

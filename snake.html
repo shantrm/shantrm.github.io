@@ -48,6 +48,9 @@
         <a href="index.html" class="back-link">← Back to Home</a>
     </div>
 
+    <!-- Load configuration and API helpers -->
+    <script src="config.js"></script>
+    <script src="api-helpers.js"></script>
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
@@ -86,12 +89,14 @@
         let usernameInput = '';
         let scoreSubmitted = false;
 
-        // Highscore data (stored in localStorage)
+        // Highscore data (loaded from API)
         let userList = [];
         let scoreList = [];
         let scoreScrollIndex = 0; // Current scroll position for highscores
         const SCORES_PER_PAGE = 5; // Number of scores to show at once
         const MAX_HIGHSCORES = 50; // Maximum number of highscores to keep
+        let isLoadingScores = false;
+        let scoresLoadError = null;
 
         // Check if rainbow skin is unlocked
         function isRainbowUnlocked() {
@@ -104,25 +109,32 @@
             localStorage.setItem('snakeRainbowUnlocked', 'true');
         }
 
-        // Load highscores from localStorage
-        function loadHighscores() {
-            const users = localStorage.getItem('snakeUsers');
-            const scores = localStorage.getItem('snakeScores');
-            userList = users ? JSON.parse(users) : [];
-            scoreList = scores ? JSON.parse(scores) : [];
+        // Load highscores from API
+        async function loadHighscores() {
+            isLoadingScores = true;
+            scoresLoadError = null;
 
-            // Add default highscore if empty
-            if (userList.length === 0 && scoreList.length === 0) {
-                userList = ['Shant'];
-                scoreList = [75];
-                saveHighscores();
+            try {
+                const scores = await getTopScores(MAX_HIGHSCORES);
+
+                // Convert API response to local format
+                userList = scores.map(s => s.username);
+                scoreList = scores.map(s => s.score);
+
+                // If no scores, initialize with empty arrays (no default score)
+                if (userList.length === 0) {
+                    userList = [];
+                    scoreList = [];
+                }
+            } catch (error) {
+                console.error('Failed to load highscores:', error);
+                scoresLoadError = error.message;
+                // Keep empty arrays on error
+                userList = [];
+                scoreList = [];
+            } finally {
+                isLoadingScores = false;
             }
-        }
-
-        // Save highscores to localStorage
-        function saveHighscores() {
-            localStorage.setItem('snakeUsers', JSON.stringify(userList));
-            localStorage.setItem('snakeScores', JSON.stringify(scoreList));
         }
 
         // Button class (matching Python button class)
@@ -195,10 +207,18 @@
         let downArrowBtn = new Button(GRAY, 500, 340, 50, 50, '▼');
 
         // Initialize game
-        function init() {
+        async function init() {
             drawStartScreen();
 
-            loadHighscores();
+            // Preload profanity wordlist (async, don't block UI)
+            loadProfanityWords().catch(err => {
+                console.error('Failed to preload profanity wordlist:', err);
+            });
+
+            // Load highscores from API (async, but don't block UI)
+            loadHighscores().catch(err => {
+                console.error('Failed to load initial highscores:', err);
+            });
 
             // Mouse event listeners
             canvas.addEventListener('click', handleClick);
@@ -229,7 +249,7 @@
                     if (scoreScrollIndex > 0) {
                         scoreScrollIndex -= SCORES_PER_PAGE;
                         if (scoreScrollIndex < 0) scoreScrollIndex = 0;
-                        showScoreScreen();
+                        showScoreScreen(false); // Don't reload from API on scroll
                     }
                 } else if (downArrowBtn.isOver(mouseX, mouseY)) {
                     const combined = userList.map((user, i) => ({ user, score: scoreList[i] }));
@@ -238,7 +258,7 @@
                     if (scoreScrollIndex < maxScroll) {
                         scoreScrollIndex += SCORES_PER_PAGE;
                         if (scoreScrollIndex > maxScroll) scoreScrollIndex = maxScroll;
-                        showScoreScreen();
+                        showScoreScreen(false); // Don't reload from API on scroll
                     }
                 }
             } else if (currentScreen === 'settings') {
@@ -290,7 +310,7 @@
                 } else if (retryButton.isOver(mouseX, mouseY)) {
                     startGame();
                 } else if (submitButton.isOver(mouseX, mouseY) && !scoreSubmitted && usernameInput.trim() !== '') {
-                    submitScore();
+                    submitScoreToAPI();
                 }
             }
         }
@@ -412,9 +432,13 @@
                 if (e.key === 'Backspace') {
                     usernameInput = usernameInput.slice(0, -1);
                     drawGameOverScreen();
-                } else if (e.key.length === 1 && usernameInput.length < 15) {
-                    usernameInput += e.key;
-                    drawGameOverScreen();
+                } else if (e.key.length === 1 && usernameInput.length < 20) { // Increased to 20 to match DB limit
+                    // Only allow alphanumeric, spaces, hyphens, underscores
+                    const char = e.key;
+                    if (/^[a-zA-Z0-9\s\-_]$/.test(char)) {
+                        usernameInput += char;
+                        drawGameOverScreen();
+                    }
                 }
             }
         }
@@ -521,26 +545,20 @@
         }
 
         // Show score screen
-        function showScoreScreen() {
+        async function showScoreScreen(reloadFromAPI = true) {
             currentScreen = 'score';
             ctx.fillStyle = BLACK;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Sort scores
-            let tempUsers = [...userList];
-            let tempScores = [...scoreList];
+            // Reload scores from API only if requested (not on scroll)
+            if (reloadFromAPI) {
+                await loadHighscores();
+            }
 
-            // Combine and sort
-            let combined = tempUsers.map((user, i) => ({ user, score: tempScores[i] }));
+            // Combine and sort (already sorted by API, but ensure consistency)
+            let combined = userList.map((user, i) => ({ user, score: scoreList[i] }));
             combined.sort((a, b) => b.score - a.score);
             combined = combined.slice(0, MAX_HIGHSCORES); // Limit to 50
-
-            // Update lists
-            if (combined.length !== userList.length || combined.length > MAX_HIGHSCORES) {
-                userList = combined.map(c => c.user);
-                scoreList = combined.map(c => c.score);
-                saveHighscores();
-            }
 
             // Reset scroll if out of bounds
             const maxScroll = Math.max(0, combined.length - SCORES_PER_PAGE);
@@ -556,29 +574,58 @@
             ctx.textAlign = 'left';
             ctx.fillText('Highscores:', 100, 105);
 
-            // Display paginated scores
-            ctx.font = '30px Arial';
-            let y = 160;
-            const startIndex = scoreScrollIndex;
-            const endIndex = Math.min(startIndex + SCORES_PER_PAGE, combined.length);
-
-            for (let i = startIndex; i < endIndex; i++) {
-                const rank = i + 1;
-                ctx.fillText(rank + '. ' + combined[i].user, 114, y);
-                ctx.fillText(combined[i].score.toString(), 350, y);
-                y += 40;
+            // Show loading or error message
+            if (isLoadingScores) {
+                ctx.font = '30px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Loading scores...', 304, 240);
+                backButton.draw();
+                return;
             }
 
-            // Draw arrow buttons if there are more scores to scroll
-            if (combined.length > SCORES_PER_PAGE) {
-                // Up arrow (only show if not at top)
-                if (scoreScrollIndex > 0) {
-                    upArrowBtn.draw();
+            if (scoresLoadError) {
+                ctx.font = '24px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillStyle = RED;
+                ctx.fillText('Failed to load scores', 304, 220);
+                ctx.fillStyle = WHITE;
+                ctx.font = '18px Arial';
+                ctx.fillText('Check your connection', 304, 250);
+                backButton.draw();
+                return;
+            }
+
+            // Display paginated scores
+            if (combined.length === 0) {
+                ctx.font = '30px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('No scores yet!', 304, 240);
+                ctx.fillText('Be the first!', 304, 280);
+            } else {
+                ctx.font = '30px Arial';
+                ctx.textAlign = 'left';
+                let y = 160;
+                const startIndex = scoreScrollIndex;
+                const endIndex = Math.min(startIndex + SCORES_PER_PAGE, combined.length);
+
+                for (let i = startIndex; i < endIndex; i++) {
+                    const rank = i + 1;
+                    ctx.fillText(rank + '. ' + combined[i].user, 114, y);
+                    ctx.fillText(combined[i].score.toString(), 350, y);
+                    y += 40;
                 }
 
-                // Down arrow (only show if not at bottom)
-                if (scoreScrollIndex < maxScroll) {
-                    downArrowBtn.draw();
+                // Draw arrow buttons if there are more scores to scroll
+                if (combined.length > SCORES_PER_PAGE) {
+                    // Up arrow (only show if not at top)
+                    if (scoreScrollIndex > 0) {
+                        upArrowBtn.draw();
+                    }
+
+                    // Down arrow (only show if not at bottom)
+                    if (scoreScrollIndex < maxScroll) {
+                        downArrowBtn.draw();
+                    }
                 }
             }
 
@@ -728,7 +775,7 @@
 
             // Username prompt
             ctx.font = '30px Arial';
-            ctx.fillText('Username:', 304, 240);
+            ctx.fillText('Username (3-20 chars):', 304, 240);
 
             // Input box (centered)
             const inputBoxWidth = 230;
@@ -740,6 +787,12 @@
             ctx.textAlign = 'left';
             ctx.fillText(usernameInput, inputBoxX + 5, 285);
 
+            // Show character count
+            ctx.fillStyle = WHITE;
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'right';
+            ctx.fillText(`${usernameInput.length}/20`, inputBoxX + inputBoxWidth - 5, 310);
+
             // Submit button (centered)
             submitButton.color = scoreSubmitted ? DARKGREEN : GREEN;
             submitButton.x = (canvas.width - submitButton.width) / 2;
@@ -750,28 +803,64 @@
             retryButton.draw();
         }
 
-        // Submit score
-        function submitScore() {
-            if (usernameInput.trim() !== '') {
-                userList.push(usernameInput.trim());
-                scoreList.push(score);
+        // Validate username before submission
+        // Note: Uses loadProfanityWords() and containsProfanity() from api-helpers.js
+        function validateUsername(username) {
+            username = username.trim();
 
-                // Combine and sort
-                let combined = userList.map((user, i) => ({ user, score: scoreList[i] }));
-                combined.sort((a, b) => b.score - a.score);
+            if (username.length < 3) {
+                return { valid: false, error: 'Username must be at least 3 characters' };
+            }
 
-                // Limit to MAX_HIGHSCORES and remove oldest (lowest score) if needed
-                if (combined.length > MAX_HIGHSCORES) {
-                    combined = combined.slice(0, MAX_HIGHSCORES);
+            if (username.length > 20) {
+                return { valid: false, error: 'Username must be 20 characters or less' };
+            }
+
+            if (!/^[a-zA-Z0-9\s\-_]+$/.test(username)) {
+                return { valid: false, error: 'Username can only contain letters, numbers, spaces, hyphens, and underscores' };
+            }
+
+            // Check for profanity (synchronous check)
+            if (containsProfanity(username)) {
+                return { valid: false, error: 'Username contains inappropriate content. Please choose a different username.' };
+            }
+
+            return { valid: true, username };
+        }
+
+        // Submit score to API
+        async function submitScoreToAPI() {
+            const validation = validateUsername(usernameInput);
+
+            if (!validation.valid) {
+                // Show error message (we'll display it on the game over screen)
+                alert(validation.error);
+                return;
+            }
+
+            // Disable submit button while submitting
+            submitButton.color = GRAY;
+            drawGameOverScreen();
+
+            try {
+                const result = await submitScore(validation.username, score);
+
+                // Update local lists with fresh data from server
+                if (result.topScores && result.topScores.length > 0) {
+                    userList = result.topScores.map(s => s.username);
+                    scoreList = result.topScores.map(s => s.score);
                 }
 
-                // Update lists
-                userList = combined.map(c => c.user);
-                scoreList = combined.map(c => c.score);
-
-                saveHighscores();
                 scoreSubmitted = true;
                 submitButton.color = DARKGREEN;
+                drawGameOverScreen();
+            } catch (error) {
+                console.error('Failed to submit score:', error);
+                // Show error message
+                alert('Failed to submit score: ' + error.message + '\n\nYour score was: ' + score);
+                // Re-enable submit button
+                submitButton.color = GREEN;
+                scoreSubmitted = false;
                 drawGameOverScreen();
             }
         }
