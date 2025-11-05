@@ -4,7 +4,6 @@
 # config.js
 
 # Profanity wordlist (contains explicit content)
-profanity.txt
 
 # Node modules (if you use the Express server)
 node_modules/
