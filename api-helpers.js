@@ -69,25 +69,46 @@ async function loadProfanityWords() {
 function containsProfanity(username) {
     if (PROFANITY_WORDS.length === 0) {
         // Wordlist not loaded yet, skip check
+        console.log(`[Profanity Check] "${username}" - Wordlist not loaded, returning false`);
         return false;
     }
 
-    const lowerUsername = username.toLowerCase();
+    const lowerUsername = username.toLowerCase().trim();
+    console.log(`[Profanity Check] Checking username: "${username}" (normalized: "${lowerUsername}")`);
 
-    // Remove common obfuscation characters and normalize
-    const normalized = lowerUsername
-        .replace(/[0-9@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/g, '')
-        .replace(/\s+/g, '');
-
-    // Check against wordlist
+    // Check if entire username is a profanity word
     for (const word of PROFANITY_WORDS) {
-        const normalizedWord = word.toLowerCase().replace(/[^a-z]/g, '');
-        // Check both exact match and substring match
-        if (normalized.includes(normalizedWord) || lowerUsername.includes(word.toLowerCase())) {
+        const cleanWord = word.toLowerCase().trim();
+        if (lowerUsername === cleanWord) {
+            console.log(`[Profanity Check] MATCH FOUND: Entire username matches profanity word: "${cleanWord}"`);
             return true;
         }
     }
 
+    // Check for profanity words as separate words (with word boundaries)
+    // This prevents "ass" from matching "class" or "pass"
+    for (const word of PROFANITY_WORDS) {
+        const cleanWord = word.toLowerCase().trim();
+
+        // Skip very short words (less than 3 chars) to reduce false positives
+        if (cleanWord.length < 3) {
+            continue;
+        }
+
+        // Escape special regex characters
+        const escapedWord = cleanWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+        // Check for whole word match with word boundaries
+        // This ensures the profanity word appears as a complete word, not embedded
+        const wordRegex = new RegExp('\\b' + escapedWord + '\\b', 'i');
+
+        if (wordRegex.test(lowerUsername)) {
+            console.log(`[Profanity Check] MATCH FOUND: Username contains profanity word: "${cleanWord}" (matched in: "${lowerUsername}")`);
+            return true;
+        }
+    }
+
+    console.log(`[Profanity Check] No profanity found in: "${username}"`);
     return false;
 }
 
