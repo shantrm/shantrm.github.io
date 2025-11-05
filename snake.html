@@ -89,6 +89,9 @@
         // Highscore data (stored in localStorage)
         let userList = [];
         let scoreList = [];
+        let scoreScrollIndex = 0; // Current scroll position for highscores
+        const SCORES_PER_PAGE = 5; // Number of scores to show at once
+        const MAX_HIGHSCORES = 50; // Maximum number of highscores to keep
 
         // Check if rainbow skin is unlocked
         function isRainbowUnlocked() {
@@ -187,6 +190,10 @@
         let moreBtn = new Button(WHITE, 385, 300, 50, 50, '+');
         let lessBtn = new Button(WHITE, 168, 300, 50, 50, '-');
 
+        // Arrow buttons for highscore scrolling
+        let upArrowBtn = new Button(GRAY, 500, 150, 50, 50, '▲');
+        let downArrowBtn = new Button(GRAY, 500, 340, 50, 50, '▼');
+
         // Initialize game
         function init() {
             drawStartScreen();
@@ -218,6 +225,21 @@
             } else if (currentScreen === 'score') {
                 if (backButton.isOver(mouseX, mouseY)) {
                     drawStartScreen();
+                } else if (upArrowBtn.isOver(mouseX, mouseY)) {
+                    if (scoreScrollIndex > 0) {
+                        scoreScrollIndex -= SCORES_PER_PAGE;
+                        if (scoreScrollIndex < 0) scoreScrollIndex = 0;
+                        showScoreScreen();
+                    }
+                } else if (downArrowBtn.isOver(mouseX, mouseY)) {
+                    const combined = userList.map((user, i) => ({ user, score: scoreList[i] }));
+                    combined.sort((a, b) => b.score - a.score);
+                    const maxScroll = Math.max(0, combined.length - SCORES_PER_PAGE);
+                    if (scoreScrollIndex < maxScroll) {
+                        scoreScrollIndex += SCORES_PER_PAGE;
+                        if (scoreScrollIndex > maxScroll) scoreScrollIndex = maxScroll;
+                        showScoreScreen();
+                    }
                 }
             } else if (currentScreen === 'settings') {
                 if (backButton.isOver(mouseX, mouseY)) {
@@ -298,11 +320,34 @@
                 }
             } else if (currentScreen === 'score') {
                 let newBackColor = backButton.isOver(mouseX, mouseY) ? WHITE : GRAY;
-                if (backButton.color !== newBackColor) {
+                let newUpArrowColor = upArrowBtn.isOver(mouseX, mouseY) ? WHITE : GRAY;
+                let newDownArrowColor = downArrowBtn.isOver(mouseX, mouseY) ? WHITE : GRAY;
+
+                const combined = userList.map((user, i) => ({ user, score: scoreList[i] }));
+                combined.sort((a, b) => b.score - a.score);
+                const maxScroll = Math.max(0, combined.length - SCORES_PER_PAGE);
+
+                // Only show hover if arrow is visible
+                if (scoreScrollIndex <= 0) newUpArrowColor = GRAY;
+                if (scoreScrollIndex >= maxScroll) newDownArrowColor = GRAY;
+
+                if (backButton.color !== newBackColor || upArrowBtn.color !== newUpArrowColor || downArrowBtn.color !== newDownArrowColor) {
                     backButton.color = newBackColor;
+                    upArrowBtn.color = newUpArrowColor;
+                    downArrowBtn.color = newDownArrowColor;
+
                     ctx.fillStyle = BLACK;
                     ctx.fillRect(backButton.x, backButton.y, backButton.width, backButton.height);
+                    if (scoreScrollIndex > 0) {
+                        ctx.fillRect(upArrowBtn.x, upArrowBtn.y, upArrowBtn.width, upArrowBtn.height);
+                    }
+                    if (scoreScrollIndex < maxScroll) {
+                        ctx.fillRect(downArrowBtn.x, downArrowBtn.y, downArrowBtn.width, downArrowBtn.height);
+                    }
+
                     backButton.draw();
+                    if (scoreScrollIndex > 0) upArrowBtn.draw();
+                    if (scoreScrollIndex < maxScroll) downArrowBtn.draw();
                 }
             } else if (currentScreen === 'settings') {
                 let newBackColor = backButton.isOver(mouseX, mouseY) ? WHITE : GRAY;
@@ -488,13 +533,19 @@
             // Combine and sort
             let combined = tempUsers.map((user, i) => ({ user, score: tempScores[i] }));
             combined.sort((a, b) => b.score - a.score);
-            combined = combined.slice(0, 5); // Top 5
+            combined = combined.slice(0, MAX_HIGHSCORES); // Limit to 50
 
             // Update lists
-            if (combined.length > userList.length || combined.length > 5) {
+            if (combined.length !== userList.length || combined.length > MAX_HIGHSCORES) {
                 userList = combined.map(c => c.user);
                 scoreList = combined.map(c => c.score);
                 saveHighscores();
+            }
+
+            // Reset scroll if out of bounds
+            const maxScroll = Math.max(0, combined.length - SCORES_PER_PAGE);
+            if (scoreScrollIndex > maxScroll) {
+                scoreScrollIndex = maxScroll;
             }
 
             // Title
@@ -505,13 +556,30 @@
             ctx.textAlign = 'left';
             ctx.fillText('Highscores:', 100, 105);
 
-            // Display scores
+            // Display paginated scores
             ctx.font = '30px Arial';
             let y = 160;
-            for (let i = 0; i < combined.length; i++) {
-                ctx.fillText(combined[i].user, 114, y);
+            const startIndex = scoreScrollIndex;
+            const endIndex = Math.min(startIndex + SCORES_PER_PAGE, combined.length);
+
+            for (let i = startIndex; i < endIndex; i++) {
+                const rank = i + 1;
+                ctx.fillText(rank + '. ' + combined[i].user, 114, y);
                 ctx.fillText(combined[i].score.toString(), 350, y);
                 y += 40;
+            }
+
+            // Draw arrow buttons if there are more scores to scroll
+            if (combined.length > SCORES_PER_PAGE) {
+                // Up arrow (only show if not at top)
+                if (scoreScrollIndex > 0) {
+                    upArrowBtn.draw();
+                }
+
+                // Down arrow (only show if not at bottom)
+                if (scoreScrollIndex < maxScroll) {
+                    downArrowBtn.draw();
+                }
             }
 
             backButton.draw();
@@ -687,6 +755,20 @@
             if (usernameInput.trim() !== '') {
                 userList.push(usernameInput.trim());
                 scoreList.push(score);
+
+                // Combine and sort
+                let combined = userList.map((user, i) => ({ user, score: scoreList[i] }));
+                combined.sort((a, b) => b.score - a.score);
+
+                // Limit to MAX_HIGHSCORES and remove oldest (lowest score) if needed
+                if (combined.length > MAX_HIGHSCORES) {
+                    combined = combined.slice(0, MAX_HIGHSCORES);
+                }
+
+                // Update lists
+                userList = combined.map(c => c.user);
+                scoreList = combined.map(c => c.score);
+
                 saveHighscores();
                 scoreSubmitted = true;
                 submitButton.color = DARKGREEN;
