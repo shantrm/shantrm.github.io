@@ -1,2 +1,2 @@
 Personal Website :)
-https://shantrm.github.io/
+https://shantrm.me/
