@@ -151,6 +151,51 @@ async function getTopScores(limit = 50) {
 }
 
 /**
+ * Get the client's IP address using a free IP lookup service
+ * @returns {Promise<string|null>} IP address or null if unable to fetch
+ */
+async function getClientIP() {
+    try {
+        // Try multiple IP lookup services for reliability
+        const services = [
+            'https://api.ipify.org?format=json',
+            'https://api64.ipify.org?format=json',
+            'https://ipapi.co/json/'
+        ];
+
+        for (const service of services) {
+            try {
+                const response = await fetch(service, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    // Different services return IP in different formats
+                    const ip = data.ip || data.query || null;
+                    if (ip) {
+                        console.log('IP address fetched:', ip);
+                        return ip;
+                    }
+                }
+            } catch (err) {
+                console.warn(`Failed to fetch IP from ${service}:`, err);
+                continue;
+            }
+        }
+
+        console.warn('Unable to fetch IP address from any service');
+        return null;
+    } catch (error) {
+        console.error('Error fetching IP address:', error);
+        return null;
+    }
+}
+
+/**
  * Submit a score to the database
  * @param {string} username - Username (will be validated server-side)
  * @param {number} score - Score value (will be validated server-side)
@@ -185,6 +230,20 @@ async function submitScore(username, score) {
             throw new Error('Score must be a non-negative number');
         }
 
+        // Get client IP address
+        const ipAddress = await getClientIP();
+
+        // Prepare the request body
+        const requestBody = {
+            username: username.trim(),
+            score: Math.floor(score) // Ensure integer
+        };
+
+        // Add IP address if available
+        if (ipAddress) {
+            requestBody.ip_address = ipAddress;
+        }
+
         const response = await fetch(`${SUPABASE_URL}/rest/v1/highscores`, {
             method: 'POST',
             headers: {
@@ -193,10 +252,7 @@ async function submitScore(username, score) {
                 'Content-Type': 'application/json',
                 'Prefer': 'return=representation'
             },
-            body: JSON.stringify({
-                username: username.trim(),
-                score: Math.floor(score) // Ensure integer
-            })
+            body: JSON.stringify(requestBody)
         });
 
         if (!response.ok) {
