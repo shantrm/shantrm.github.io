@@ -69,18 +69,15 @@ async function loadProfanityWords() {
 function containsProfanity(username) {
     if (PROFANITY_WORDS.length === 0) {
         // Wordlist not loaded yet, skip check
-        console.log(`[Profanity Check] "${username}" - Wordlist not loaded, returning false`);
         return false;
     }
 
     const lowerUsername = username.toLowerCase().trim();
-    console.log(`[Profanity Check] Checking username: "${username}" (normalized: "${lowerUsername}")`);
 
     // Check if entire username is a profanity word
     for (const word of PROFANITY_WORDS) {
         const cleanWord = word.toLowerCase().trim();
         if (lowerUsername === cleanWord) {
-            console.log(`[Profanity Check] MATCH FOUND: Entire username matches profanity word: "${cleanWord}"`);
             return true;
         }
     }
@@ -103,12 +100,10 @@ function containsProfanity(username) {
         const wordRegex = new RegExp('\\b' + escapedWord + '\\b', 'i');
 
         if (wordRegex.test(lowerUsername)) {
-            console.log(`[Profanity Check] MATCH FOUND: Username contains profanity word: "${cleanWord}" (matched in: "${lowerUsername}")`);
             return true;
         }
     }
 
-    console.log(`[Profanity Check] No profanity found in: "${username}"`);
     return false;
 }
 
@@ -166,7 +161,6 @@ async function getClientIP() {
 
         for (const service of services) {
             try {
-                console.log(`[IP Fetch] Trying ${service.name}...`);
                 const response = await fetch(service.url, {
                     method: 'GET',
                     headers: {
@@ -176,29 +170,20 @@ async function getClientIP() {
 
                 if (response.ok) {
                     const data = await response.json();
-                    console.log(`[IP Fetch] ${service.name} response:`, data);
 
                     // Different services return IP in different formats
                     const ip = data.ip || data.query || data.IPv4 || null;
                     if (ip && typeof ip === 'string') {
-                        console.log(`[IP Fetch] Success! IP address: ${ip}`);
                         return ip.trim();
-                    } else {
-                        console.warn(`[IP Fetch] ${service.name} returned invalid IP format:`, ip);
                     }
-                } else {
-                    console.warn(`[IP Fetch] ${service.name} returned status ${response.status}`);
                 }
             } catch (err) {
-                console.warn(`[IP Fetch] Failed to fetch IP from ${service.name}:`, err.message);
                 continue;
             }
         }
 
-        console.error('[IP Fetch] Unable to fetch IP address from any service');
         return null;
     } catch (error) {
-        console.error('[IP Fetch] Error fetching IP address:', error);
         return null;
     }
 }
@@ -239,9 +224,7 @@ async function submitScore(username, score) {
         }
 
         // Get client IP address
-        console.log('[Submit Score] Fetching IP address...');
         const ipAddress = await getClientIP();
-        console.log('[Submit Score] IP address result:', ipAddress);
 
         // Prepare the request body
         const requestBody = {
@@ -252,12 +235,7 @@ async function submitScore(username, score) {
         // Add IP address if available (column type: inet in Supabase)
         if (ipAddress) {
             requestBody.ip_address = ipAddress;
-            console.log('[Submit Score] Including IP address in request:', ipAddress);
-        } else {
-            console.warn('[Submit Score] No IP address available, submitting without IP');
         }
-
-        console.log('[Submit Score] Request body:', requestBody);
 
         const response = await fetch(`${SUPABASE_URL}/rest/v1/highscores`, {
             method: 'POST',
@@ -272,7 +250,6 @@ async function submitScore(username, score) {
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('[Submit Score] Error response:', response.status, errorText);
             let errorMessage = `Failed to submit score: ${response.status}`;
 
             try {
@@ -288,8 +265,6 @@ async function submitScore(username, score) {
         }
 
         const data = await response.json();
-        console.log('[Submit Score] Success! Response data:', data);
-        console.log('[Submit Score] IP address in response:', data.ip_address || 'NOT PRESENT');
 
         // Get updated top scores after submission
         const topScores = await getTopScores(50);
