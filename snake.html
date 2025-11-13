@@ -58,6 +58,7 @@
         // Colors matching Python version
         const BLACK = '#000000';
         const RED = '#FF0000';
+        const DARK_RED = '#CC0000'; // Darker red for speed skin
         const ORANGE = '#FFA500';
         const YELLOW = '#E1FF00';
         const GREEN = '#00FF00';
@@ -66,9 +67,13 @@
         const GRAY = '#C8C8C8';
         const WHITE = '#FFFFFF';
         const PURPLE = '#FF00FF';
+        const DARK_PURPLE = '#7d12ff'; // Dark purple color
         const RAINBOW = 'RAINBOW'; // Special value for rainbow mode
+        const HACKER_GREEN = '#00FF00'; // Hacker green color
+        const HACKER = 'HACKER'; // Special value for hacker mode
+        const SPEED = 'SPEED'; // Special value for speed skin (unlocks with 4x speed)
 
-        // Rainbow colors array
+        // Rainbow colors array (ROYGBP: Red, Orange, Yellow, Green, Blue, Purple)
         const RAINBOW_COLORS = [RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE];
 
         // Game settings
@@ -86,12 +91,48 @@
         let foodX = 0;
         let foodY = 0;
         let gameInterval = null;
+
+        // Cached values to avoid recalculation every frame
+        let cachedMultiplier = 1;
+        let cachedFoodColor = RED;
         let usernameInput = '';
         let scoreSubmitted = false;
+        let isMuted = false; // Sound mute state
+        let unlockMessage = null; // Message to display when locked skin is clicked
+        let unlockMessageTimeout = null; // Timeout to clear the message
+        let devToolsOpen = false; // Track if DevTools is open
+        let newSkinUnlocked = false; // Track if a new skin was just unlocked
+        let speed3xClicks = 0; // Track clicks on + button when speed is 3x
+        let is4xUnlocked = false; // Track if 4x speed is unlocked
+        let shake4xOffsetX = 0; // Shake animation offset for 4x text
+        let shake4xOffsetY = 0; // Shake animation offset for 4x text
+        let shake4xInterval = null; // Interval for 4x shake animation
+        let speedSkinShakeOffsets = []; // Array of shake offsets for each snake segment (visual only, doesn't affect hitbox)
+        let speedSkinShakeInterval = null; // Interval for speed skin shake animation
+        let speedButtonShakeOffsetX = 0; // Shake animation offset for speed button
+        let speedButtonShakeOffsetY = 0; // Shake animation offset for speed button
+        let speedButtonShakeInterval = null; // Interval for speed button shake animation
+
+        // Check if 4x speed is unlocked
+        function is4xSpeedUnlocked() {
+            const unlocked = localStorage.getItem('snake4xSpeedUnlocked');
+            return unlocked === 'true';
+        }
+
+        // Unlock 4x speed
+        function unlock4xSpeed() {
+            localStorage.setItem('snake4xSpeedUnlocked', 'true');
+            is4xUnlocked = true;
+        }
+
+        // Initialize 4x unlock status
+        is4xUnlocked = is4xSpeedUnlocked();
 
         // Highscore data (loaded from API)
         let userList = [];
         let scoreList = [];
+        let speedList = [];
+        let skinList = [];
         let scoreScrollIndex = 0; // Current scroll position for highscores
         const SCORES_PER_PAGE = 5; // Number of scores to show at once
         const MAX_HIGHSCORES = 50; // Maximum number of highscores to keep
@@ -102,6 +143,22 @@
         function isRainbowUnlocked() {
             const unlocked = localStorage.getItem('snakeRainbowUnlocked');
             return unlocked === 'true';
+        }
+
+        function isHackerUnlocked() {
+            // Hacker skin is unlocked when DevTools is detected (easter egg)
+            // Check both current state and saved state
+            const saved = localStorage.getItem('snakeHackerUnlocked');
+            return saved === 'true' || devToolsOpen;
+        }
+
+        // Check if speed skin is unlocked (unlocks with 4x speed)
+        function isSpeedUnlocked() {
+            return is4xUnlocked;
+        }
+
+        function unlockHacker() {
+            localStorage.setItem('snakeHackerUnlocked', 'true');
         }
 
         // Unlock rainbow skin
@@ -120,11 +177,15 @@
                 // Convert API response to local format
                 userList = scores.map(s => s.username);
                 scoreList = scores.map(s => s.score);
+                speedList = scores.map(s => s.speed || null);
+                skinList = scores.map(s => s.skin || null);
 
                 // If no scores, initialize with empty arrays (no default score)
                 if (userList.length === 0) {
                     userList = [];
                     scoreList = [];
+                    speedList = [];
+                    skinList = [];
                 }
             } catch (error) {
                 console.error('Failed to load highscores:', error);
@@ -132,6 +193,8 @@
                 // Keep empty arrays on error
                 userList = [];
                 scoreList = [];
+                speedList = [];
+                skinList = [];
             } finally {
                 isLoadingScores = false;
             }
@@ -183,7 +246,8 @@
         let titleButton = new Button(RED, 70, 70, 475, 80, 'Snake Game!');
         let startButton = new Button(GREEN, 320, 225, 250, 100, 'Start');
         let scoreButton = new Button(YELLOW, 40, 225, 250, 100, 'Highscore');
-        let settingButton = new Button(BLACK, 0, 360, 121, 118, '');
+        let settingButton = new Button(BLACK, 30, 385, 60, 60, '');
+        let volumeButton = new Button(GRAY, 100, 385, 60, 60, '');
         let backButton = new Button(GRAY, 483, 430, 125, 50, 'Back');
         let homeButton = new Button(GRAY, 483, 430, 125, 50, 'Home');
         let retryButton = new Button(GRAY, 0, 430, 125, 50, 'Retry');
@@ -196,18 +260,117 @@
         let greenBtn = new Button(GREEN, 279, 120, 50, 50, '');
         let blueBtn = new Button(BLUE, 347, 120, 50, 50, '');
         let purpleBtn = new Button(PURPLE, 415, 120, 50, 50, '');
-        let rainbowBtn = new Button(GRAY, 483, 120, 50, 50, '');
+        let darkPurpleBtn = new Button(DARK_PURPLE, 483, 120, 50, 50, '');
+
+        // Second row of skins (18px spacing from first row, same as button spacing)
+        let hackerBtn = new Button(BLACK, 75, 188, 50, 50, '');
+        let rainbowBtn = new Button(GRAY, 143, 188, 50, 50, '');
+        let speedBtn = new Button(RED, 211, 188, 50, 50, '');
 
         // Speed buttons
-        let moreBtn = new Button(WHITE, 385, 300, 50, 50, '+');
-        let lessBtn = new Button(WHITE, 168, 300, 50, 50, '-');
+        let moreBtn = new Button(WHITE, 385, 340, 50, 50, '+');
+        let lessBtn = new Button(WHITE, 168, 340, 50, 50, '-');
 
         // Arrow buttons for highscore scrolling
-        let upArrowBtn = new Button(GRAY, 500, 150, 50, 50, '▲');
-        let downArrowBtn = new Button(GRAY, 500, 340, 50, 50, '▼');
+        let upArrowBtn = new Button(GRAY, 535, 145, 50, 50, '▲');
+        let downArrowBtn = new Button(GRAY, 535, 335, 50, 50, '▼');
+
+        // Preload lock image
+        const lockImage = new Image();
+        lockImage.src = 'lock.png';
+
+        // Preload volume images
+        const volumeImage = new Image();
+        volumeImage.onload = function () {
+            // Redraw start screen when image loads
+            if (currentScreen === 'start') {
+                drawStartScreen();
+            }
+        };
+        volumeImage.src = 'medium-volume.png';
+        const muteImage = new Image();
+        muteImage.onload = function () {
+            // Redraw start screen when image loads
+            if (currentScreen === 'start') {
+                drawStartScreen();
+            }
+        };
+        muteImage.src = 'mute.png';
+
+        // Preload sound and prepare for immediate playback
+        const bloopSound = new Audio('bloop.mp3');
+        bloopSound.preload = 'auto';
+        bloopSound.load(); // Force load immediately
+
+        // Create multiple instances for rapid playback without delay
+        const bloopSound2 = new Audio('bloop.mp3');
+        bloopSound2.preload = 'auto';
+        bloopSound2.load();
+
+        let currentBloopSound = bloopSound;
+
+        // Detect DevTools opening using window size detection
+        let devToolsInterval = null;
+        function detectDevTools() {
+            let wasOpen = false;
+            const threshold = 160;
+            // Clear any existing interval
+            if (devToolsInterval) clearInterval(devToolsInterval);
+            devToolsInterval = setInterval(function () {
+                const widthDiff = window.outerWidth - window.innerWidth;
+                const heightDiff = window.outerHeight - window.innerHeight;
+
+                if (widthDiff > threshold || heightDiff > threshold) {
+                    if (!devToolsOpen) {
+                        devToolsOpen = true;
+                        if (!wasOpen) {
+                            wasOpen = true;
+                            onDevToolsOpen();
+                        }
+                    }
+                } else {
+                    if (devToolsOpen) {
+                        devToolsOpen = false;
+                        if (wasOpen) {
+                            wasOpen = false;
+                            onDevToolsClose();
+                        }
+                    }
+                }
+            }, 500);
+        }
+
+        // Callback when DevTools is opened
+        function onDevToolsOpen() {
+            console.log('Devtools Opened');
+            // Check if hacker skin is already saved in localStorage (before unlocking)
+            const wasSaved = localStorage.getItem('snakeHackerUnlocked') === 'true';
+            // Unlock hacker skin permanently (save to localStorage)
+            unlockHacker();
+            // If it was just unlocked (not already saved), show notification
+            if (!wasSaved) {
+                newSkinUnlocked = true; // Show notification immediately
+                // Redraw current screen to show notification (except game screen)
+                if (currentScreen === 'start') {
+                    drawStartScreen();
+                } else if (currentScreen === 'settings') {
+                    showSettingsScreen();
+                } else if (currentScreen === 'score') {
+                    showScoreScreen(false);
+                } else if (currentScreen === 'gameover') {
+                    drawGameOverScreen();
+                }
+            }
+        }
+
+        // Callback when DevTools is closed
+        function onDevToolsClose() {
+            // Add your custom logic here
+        }
 
         // Initialize game
         async function init() {
+            detectDevTools(); // Start DevTools detection
             drawStartScreen();
 
             // Preload profanity wordlist (async, don't block UI)
@@ -240,7 +403,11 @@
                 } else if (scoreButton.isOver(mouseX, mouseY)) {
                     showScoreScreen();
                 } else if (settingButton.isOver(mouseX, mouseY)) {
+                    newSkinUnlocked = false; // Clear notification when settings is clicked
                     showSettingsScreen();
+                } else if (volumeButton.isOver(mouseX, mouseY)) {
+                    isMuted = !isMuted;
+                    drawStartScreen();
                 }
             } else if (currentScreen === 'score') {
                 if (backButton.isOver(mouseX, mouseY)) {
@@ -252,7 +419,7 @@
                         showScoreScreen(false); // Don't reload from API on scroll
                     }
                 } else if (downArrowBtn.isOver(mouseX, mouseY)) {
-                    const combined = userList.map((user, i) => ({ user, score: scoreList[i] }));
+                    const combined = userList.map((user, i) => ({ user, score: scoreList[i], speed: speedList[i], skin: skinList[i] }));
                     combined.sort((a, b) => b.score - a.score);
                     const maxScroll = Math.max(0, combined.length - SCORES_PER_PAGE);
                     if (scoreScrollIndex < maxScroll) {
@@ -263,45 +430,187 @@
                 }
             } else if (currentScreen === 'settings') {
                 if (backButton.isOver(mouseX, mouseY)) {
+                    unlockMessage = null; // Clear message when leaving settings
+                    if (unlockMessageTimeout) {
+                        clearTimeout(unlockMessageTimeout);
+                        unlockMessageTimeout = null;
+                    }
                     drawStartScreen();
                 } else if (redBtn.isOver(mouseX, mouseY)) {
                     snakeColor = RED;
+                    updateCachedValues(); // Update cached food color
+                    unlockMessage = null; // Clear message when selecting unlocked skin
+                    if (unlockMessageTimeout) {
+                        clearTimeout(unlockMessageTimeout);
+                        unlockMessageTimeout = null;
+                    }
                     showSettingsScreen();
                 } else if (orangeBtn.isOver(mouseX, mouseY)) {
                     snakeColor = ORANGE;
+                    updateCachedValues();
+                    unlockMessage = null;
+                    if (unlockMessageTimeout) {
+                        clearTimeout(unlockMessageTimeout);
+                        unlockMessageTimeout = null;
+                    }
                     showSettingsScreen();
                 } else if (yellowBtn.isOver(mouseX, mouseY)) {
                     snakeColor = YELLOW;
+                    updateCachedValues();
+                    unlockMessage = null;
+                    if (unlockMessageTimeout) {
+                        clearTimeout(unlockMessageTimeout);
+                        unlockMessageTimeout = null;
+                    }
                     showSettingsScreen();
                 } else if (greenBtn.isOver(mouseX, mouseY)) {
                     snakeColor = GREEN;
+                    updateCachedValues();
+                    unlockMessage = null;
+                    if (unlockMessageTimeout) {
+                        clearTimeout(unlockMessageTimeout);
+                        unlockMessageTimeout = null;
+                    }
                     showSettingsScreen();
                 } else if (blueBtn.isOver(mouseX, mouseY)) {
                     snakeColor = BLUE;
+                    updateCachedValues();
+                    unlockMessage = null;
+                    if (unlockMessageTimeout) {
+                        clearTimeout(unlockMessageTimeout);
+                        unlockMessageTimeout = null;
+                    }
                     showSettingsScreen();
                 } else if (purpleBtn.isOver(mouseX, mouseY)) {
                     snakeColor = PURPLE;
-                    showSettingsScreen();
-                } else if (rainbowBtn.isOver(mouseX, mouseY) && isRainbowUnlocked()) {
-                    snakeColor = RAINBOW;
-                    showSettingsScreen();
-                } else if (moreBtn.isOver(mouseX, mouseY)) {
-                    if (speed === 90) {
-                        // Max speed
-                    } else if (speed === 15) {
-                        speed = 30;
-                    } else {
-                        speed += 30;
+                    updateCachedValues();
+                    unlockMessage = null;
+                    if (unlockMessageTimeout) {
+                        clearTimeout(unlockMessageTimeout);
+                        unlockMessageTimeout = null;
                     }
                     showSettingsScreen();
+                } else if (darkPurpleBtn.isOver(mouseX, mouseY)) {
+                    snakeColor = DARK_PURPLE;
+                    updateCachedValues();
+                    unlockMessage = null;
+                    if (unlockMessageTimeout) {
+                        clearTimeout(unlockMessageTimeout);
+                        unlockMessageTimeout = null;
+                    }
+                    showSettingsScreen();
+                } else if (rainbowBtn.isOver(mouseX, mouseY)) {
+                    if (isRainbowUnlocked()) {
+                        snakeColor = RAINBOW;
+                        updateCachedValues();
+                        unlockMessage = null; // Clear message when unlocked skin is selected
+                        if (unlockMessageTimeout) {
+                            clearTimeout(unlockMessageTimeout);
+                            unlockMessageTimeout = null;
+                        }
+                        showSettingsScreen();
+                    } else {
+                        // Show unlock message for locked rainbow skin
+                        if (unlockMessageTimeout) {
+                            clearTimeout(unlockMessageTimeout);
+                        }
+                        unlockMessage = 'Score > 150 to unlock!';
+                        unlockMessageTimeout = setTimeout(() => {
+                            unlockMessage = null;
+                            unlockMessageTimeout = null;
+                            showSettingsScreen();
+                        }, 3000); // Clear after 3 seconds
+                        showSettingsScreen();
+                    }
+                } else if (speedBtn.isOver(mouseX, mouseY)) {
+                    if (isSpeedUnlocked()) {
+                        snakeColor = SPEED;
+                        updateCachedValues();
+                        unlockMessage = null; // Clear message when unlocked skin is selected
+                        if (unlockMessageTimeout) {
+                            clearTimeout(unlockMessageTimeout);
+                            unlockMessageTimeout = null;
+                        }
+                        showSettingsScreen();
+                    } else {
+                        // Show unlock message for locked speed skin
+                        if (unlockMessageTimeout) {
+                            clearTimeout(unlockMessageTimeout);
+                        }
+                        unlockMessage = 'Easter Egg!';
+                        unlockMessageTimeout = setTimeout(() => {
+                            unlockMessage = null;
+                            unlockMessageTimeout = null;
+                            showSettingsScreen();
+                        }, 3000); // Clear after 3 seconds
+                        showSettingsScreen();
+                    }
+                } else if (hackerBtn.isOver(mouseX, mouseY)) {
+                    if (isHackerUnlocked()) {
+                        snakeColor = HACKER;
+                        updateCachedValues();
+                        unlockMessage = null; // Clear message when unlocked skin is selected
+                        if (unlockMessageTimeout) {
+                            clearTimeout(unlockMessageTimeout);
+                            unlockMessageTimeout = null;
+                        }
+                        showSettingsScreen();
+                    } else {
+                        // Show unlock message for locked hacker skin
+                        if (unlockMessageTimeout) {
+                            clearTimeout(unlockMessageTimeout);
+                        }
+                        unlockMessage = 'Easter Egg!';
+                        unlockMessageTimeout = setTimeout(() => {
+                            unlockMessage = null;
+                            unlockMessageTimeout = null;
+                            showSettingsScreen();
+                        }, 3000); // Clear after 3 seconds
+                        showSettingsScreen();
+                    }
+                } else if (moreBtn.isOver(mouseX, mouseY)) {
+                    if (speed === 90) {
+                        if (is4xUnlocked) {
+                            // If 4x is already unlocked, go directly to 4x
+                            speed = 120;
+                            speed3xClicks = 0; // Reset counter
+                        } else {
+                            // Count clicks on + button when at 3x speed
+                            speed3xClicks++;
+                            if (speed3xClicks >= 10) {
+                                // Unlock 4x speed
+                                unlock4xSpeed();
+                                speed = 120; // Set to 4x speed
+                                speed3xClicks = 0; // Reset counter
+                            }
+                        }
+                    } else if (speed === 120) {
+                        // At 4x, don't loop back - stay at 4x (max speed)
+                        speed3xClicks = 0; // Reset counter
+                    } else if (speed === 15) {
+                        speed = 30;
+                        speed3xClicks = 0; // Reset counter
+                    } else {
+                        speed += 30;
+                        speed3xClicks = 0; // Reset counter when speed changes
+                    }
+                    updateCachedValues(); // Update cached multiplier
+                    showSettingsScreen();
                 } else if (lessBtn.isOver(mouseX, mouseY)) {
-                    if (speed === 30) {
+                    if (speed === 120) {
+                        // From 4x, go back to 3x
+                        speed = 90;
+                        speed3xClicks = 0; // Reset counter
+                    } else if (speed === 30) {
                         speed = 15;
+                        speed3xClicks = 0; // Reset counter
                     } else if (speed === 15) {
                         // Min speed
                     } else {
                         speed -= 30;
+                        speed3xClicks = 0; // Reset counter when speed changes
                     }
+                    updateCachedValues(); // Update cached multiplier
                     showSettingsScreen();
                 }
             } else if (currentScreen === 'gameover') {
@@ -310,6 +619,7 @@
                 } else if (retryButton.isOver(mouseX, mouseY)) {
                     startGame();
                 } else if (submitButton.isOver(mouseX, mouseY) && !scoreSubmitted && usernameInput.trim() !== '') {
+                    scoreSubmitted = true; // Prevent multiple clicks immediately
                     submitScoreToAPI();
                 }
             }
@@ -452,8 +762,54 @@
             ctx.fillText('⚙', 60, 419);
         }
 
+        // Draw volume icon
+        function drawVolumeIcon() {
+            // Center the icon on the button (button is at 100, 380 with size 60x60)
+            const iconSize = 50; // Larger icon
+            const iconX = 100 + (60 - iconSize) / 2; // Center horizontally
+            const iconY = 385 + (60 - iconSize) / 2; // Center vertically
+
+            if (isMuted) {
+                // Draw mute icon
+                if (muteImage.complete && muteImage.naturalWidth > 0) {
+                    ctx.drawImage(muteImage, iconX, iconY, iconSize, iconSize);
+                } else {
+                    // Fallback: draw a simple mute symbol if image not loaded
+                    ctx.fillStyle = WHITE;
+                    ctx.font = 'bold 40px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('🔇', iconX + iconSize / 2, iconY + iconSize / 2 + 15);
+                }
+            } else {
+                // Draw volume icon (unmuted - default state)
+                if (volumeImage.complete && volumeImage.naturalWidth > 0) {
+                    ctx.drawImage(volumeImage, iconX, iconY, iconSize, iconSize);
+                } else {
+                    // Fallback: draw a simple volume symbol if image not loaded
+                    ctx.fillStyle = WHITE;
+                    ctx.font = 'bold 40px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('🔊', iconX + iconSize / 2, iconY + iconSize / 2 + 15);
+                }
+            }
+        }
+
         // Draw start screen
         function drawStartScreen() {
+            // Stop 4x shake animation when leaving settings
+            if (shake4xInterval) {
+                clearInterval(shake4xInterval);
+                shake4xInterval = null;
+                shake4xOffsetX = 0;
+                shake4xOffsetY = 0;
+            }
+            // Stop speed button shake animation when leaving settings
+            if (speedButtonShakeInterval) {
+                clearInterval(speedButtonShakeInterval);
+                speedButtonShakeInterval = null;
+                speedButtonShakeOffsetX = 0;
+                speedButtonShakeOffsetY = 0;
+            }
             currentScreen = 'start';
             ctx.fillStyle = BLACK;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -466,6 +822,18 @@
             scoreButton.draw();
             settingButton.draw();
             drawSettingsIcon();
+            volumeButton.draw();
+            drawVolumeIcon();
+
+            // Display new skin unlock notification in top right
+            if (newSkinUnlocked) {
+                ctx.fillStyle = BLACK;
+                ctx.fillRect(450, 10, 150, 40);
+                ctx.fillStyle = GREEN;
+                ctx.font = 'bold 18px Arial';
+                ctx.textAlign = 'right';
+                ctx.fillText('New Skin Unlock', 590, 35);
+            }
         }
 
         // Show settings screen
@@ -481,12 +849,46 @@
             ctx.fillText('Colors!', 304, 60);
 
             // Title for speed
-            ctx.fillText('Speed!', 304, 260);
+            ctx.fillText('Speed!', 304, 300);
 
             // Speed number
             let speedNum = speed / 30;
             if (speed === 15) speedNum = 0.5;
-            ctx.fillText(speedNum.toString(), 304, 340);
+            if (speed === 120) {
+                // Display 4x in red with shake animation
+                ctx.fillStyle = RED;
+                ctx.fillText('4x', 304 + shake4xOffsetX, 370 + shake4xOffsetY);
+
+                // Start shake animation if not already running
+                if (!shake4xInterval) {
+                    shake4xInterval = setInterval(function () {
+                        // Random shake offset between -3 and 3 pixels
+                        shake4xOffsetX = (Math.random() - 0.5) * 6;
+                        shake4xOffsetY = (Math.random() - 0.5) * 6;
+                        // Only redraw if still on settings screen
+                        if (currentScreen === 'settings') {
+                            // Clear the speed number area and redraw
+                            ctx.fillStyle = BLACK;
+                            ctx.fillRect(250, 340, 110, 50);
+                            // Redraw speed number with shake
+                            ctx.fillStyle = RED;
+                            ctx.font = 'bold 50px Arial';
+                            ctx.textAlign = 'center';
+                            ctx.fillText('4x', 304 + shake4xOffsetX, 370 + shake4xOffsetY);
+                        }
+                    }, 50); // Update every 50ms for smooth animation
+                }
+            } else {
+                // Stop shake animation if speed is not 4x
+                if (shake4xInterval) {
+                    clearInterval(shake4xInterval);
+                    shake4xInterval = null;
+                    shake4xOffsetX = 0;
+                    shake4xOffsetY = 0;
+                }
+                ctx.fillStyle = WHITE;
+                ctx.fillText(speedNum.toString(), 304, 370);
+            }
 
             // Draw color buttons
             redBtn.draw();
@@ -495,31 +897,108 @@
             greenBtn.draw();
             blueBtn.draw();
             purpleBtn.draw();
+            darkPurpleBtn.draw();
 
-            // Draw rainbow button if unlocked
+            // Draw second row buttons
+            // Hacker button (black with green neon outline, or dimmed if locked)
+            if (isHackerUnlocked()) {
+                ctx.fillStyle = BLACK;
+                ctx.fillRect(75, 188, 50, 50);
+                ctx.strokeStyle = HACKER_GREEN;
+                ctx.lineWidth = 3;
+                ctx.strokeRect(75, 188, 50, 50);
+            } else {
+                ctx.fillStyle = '#1a1a1a'; // Dimmed black
+                ctx.fillRect(75, 188, 50, 50);
+                ctx.strokeStyle = '#006600'; // Dimmed green
+                ctx.lineWidth = 2;
+                ctx.strokeRect(75, 188, 50, 50);
+                // Draw lock image if locked
+                if (lockImage.complete && lockImage.naturalWidth > 0) {
+                    ctx.drawImage(lockImage, 75 + 10, 188 + 10, 30, 30);
+                } else {
+                    ctx.fillStyle = WHITE;
+                    ctx.font = 'bold 30px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('🔒', 100, 218);
+                }
+            }
+
+            // Rainbow button (bright if unlocked, dim if locked) - moved to second row
+            const gradient = ctx.createLinearGradient(143, 188, 193, 238);
             if (isRainbowUnlocked()) {
-                // Draw rainbow gradient effect for the button
-                const gradient = ctx.createLinearGradient(483, 120, 533, 170);
+                // Bright colors for unlocked
                 gradient.addColorStop(0, RED);
                 gradient.addColorStop(0.2, ORANGE);
                 gradient.addColorStop(0.4, YELLOW);
                 gradient.addColorStop(0.6, GREEN);
                 gradient.addColorStop(0.8, BLUE);
                 gradient.addColorStop(1, PURPLE);
-                ctx.fillStyle = gradient;
-                ctx.fillRect(483, 120, 50, 50);
-                ctx.strokeStyle = BLACK;
-                ctx.lineWidth = 2;
-                ctx.strokeRect(483, 120, 50, 50);
             } else {
-                // Draw locked rainbow button
-                rainbowBtn.color = DARKGREEN;
-                rainbowBtn.draw();
-                // Draw lock symbol
-                ctx.fillStyle = WHITE;
-                ctx.font = 'bold 30px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText('🔒', 508, 150);
+                // Dimmer colors for locked
+                gradient.addColorStop(0, '#990000'); // Dimmed RED
+                gradient.addColorStop(0.2, '#996300'); // Dimmed ORANGE
+                gradient.addColorStop(0.4, '#879900'); // Dimmed YELLOW
+                gradient.addColorStop(0.6, '#009900'); // Dimmed GREEN
+                gradient.addColorStop(0.8, '#000099'); // Dimmed BLUE
+                gradient.addColorStop(1, '#990099'); // Dimmed PURPLE
+            }
+            ctx.fillStyle = gradient;
+            ctx.fillRect(143, 188, 50, 50);
+            ctx.strokeStyle = BLACK;
+            ctx.lineWidth = 2;
+            ctx.strokeRect(143, 188, 50, 50);
+
+            // Draw lock image if locked
+            if (!isRainbowUnlocked()) {
+                // Draw lock image if loaded
+                if (lockImage.complete && lockImage.naturalWidth > 0) {
+                    ctx.drawImage(lockImage, 143 + 10, 188 + 10, 30, 30);
+                } else {
+                    // Fallback to text if image not loaded yet
+                    ctx.fillStyle = WHITE;
+                    ctx.font = 'bold 30px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('🔒', 168, 218);
+                }
+            }
+
+            // Draw speed button (red, or dimmed if locked)
+            if (isSpeedUnlocked()) {
+                // Start shake animation for unlocked speed button if not already running
+                if (!speedButtonShakeInterval) {
+                    speedButtonShakeInterval = setInterval(function () {
+                        // Update shake offset (aggressive: random offset between -4 and 4 pixels)
+                        speedButtonShakeOffsetX = (Math.random() - 0.5) * 8;
+                        speedButtonShakeOffsetY = (Math.random() - 0.5) * 8;
+                        // Redraw settings screen if still on settings
+                        if (currentScreen === 'settings') {
+                            showSettingsScreen();
+                        }
+                    }, 50); // Update every 50ms for smooth animation
+                }
+                // Draw button with shake offset
+                ctx.fillStyle = DARK_RED;
+                ctx.fillRect(211 + speedButtonShakeOffsetX, 188 + speedButtonShakeOffsetY, 50, 50);
+            } else {
+                // Stop shake animation if button is locked
+                if (speedButtonShakeInterval) {
+                    clearInterval(speedButtonShakeInterval);
+                    speedButtonShakeInterval = null;
+                    speedButtonShakeOffsetX = 0;
+                    speedButtonShakeOffsetY = 0;
+                }
+                ctx.fillStyle = '#800000'; // Dimmed dark red
+                ctx.fillRect(211, 188, 50, 50);
+                // Draw lock image if locked
+                if (lockImage.complete && lockImage.naturalWidth > 0) {
+                    ctx.drawImage(lockImage, 211 + 10, 188 + 10, 30, 30);
+                } else {
+                    ctx.fillStyle = WHITE;
+                    ctx.font = 'bold 30px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('🔒', 236, 218);
+                }
             }
 
             // Highlight selected color
@@ -530,7 +1009,10 @@
             else if (snakeColor === GREEN) { selectX = 274; selectY = 115; }
             else if (snakeColor === BLUE) { selectX = 342; selectY = 115; }
             else if (snakeColor === PURPLE) { selectX = 410; selectY = 115; }
-            else if (snakeColor === RAINBOW) { selectX = 478; selectY = 115; }
+            else if (snakeColor === DARK_PURPLE) { selectX = 478; selectY = 115; }
+            else if (snakeColor === HACKER) { selectX = 70; selectY = 183; }
+            else if (snakeColor === RAINBOW) { selectX = 138; selectY = 183; }
+            else if (snakeColor === SPEED) { selectX = 206 + speedButtonShakeOffsetX; selectY = 183 + speedButtonShakeOffsetY; }
 
             ctx.strokeStyle = WHITE;
             ctx.lineWidth = 5;
@@ -542,10 +1024,42 @@
 
             // Back button
             backButton.draw();
+
+            // Display unlock message in top right if set
+            if (unlockMessage) {
+                ctx.fillStyle = WHITE;
+                ctx.font = '18px Arial';
+                ctx.textAlign = 'right';
+                ctx.fillText(unlockMessage, 590, 30);
+            }
+
+            // Display new skin unlock notification in top right
+            if (newSkinUnlocked) {
+                ctx.fillStyle = BLACK;
+                ctx.fillRect(450, 10, 150, 40);
+                ctx.fillStyle = GREEN;
+                ctx.font = 'bold 18px Arial';
+                ctx.textAlign = 'right';
+                ctx.fillText('New Skin Unlock', 590, 35);
+            }
         }
 
         // Show score screen
         async function showScoreScreen(reloadFromAPI = true) {
+            // Stop 4x shake animation when leaving settings
+            if (shake4xInterval) {
+                clearInterval(shake4xInterval);
+                shake4xInterval = null;
+                shake4xOffsetX = 0;
+                shake4xOffsetY = 0;
+            }
+            // Stop speed button shake animation when leaving settings
+            if (speedButtonShakeInterval) {
+                clearInterval(speedButtonShakeInterval);
+                speedButtonShakeInterval = null;
+                speedButtonShakeOffsetX = 0;
+                speedButtonShakeOffsetY = 0;
+            }
             currentScreen = 'score';
             ctx.fillStyle = BLACK;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -556,7 +1070,7 @@
             }
 
             // Combine and sort (already sorted by API, but ensure consistency)
-            let combined = userList.map((user, i) => ({ user, score: scoreList[i] }));
+            let combined = userList.map((user, i) => ({ user, score: scoreList[i], speed: speedList[i], skin: skinList[i] }));
             combined.sort((a, b) => b.score - a.score);
             combined = combined.slice(0, MAX_HIGHSCORES); // Limit to 50
 
@@ -578,7 +1092,7 @@
             if (isLoadingScores) {
                 ctx.font = '30px Arial';
                 ctx.textAlign = 'center';
-                ctx.fillText('Loading scores...', 304, 240);
+                ctx.fillText('Loading scores...', 304, 245);
                 backButton.draw();
                 return;
             }
@@ -587,10 +1101,10 @@
                 ctx.font = '24px Arial';
                 ctx.textAlign = 'center';
                 ctx.fillStyle = RED;
-                ctx.fillText('Failed to load scores', 304, 220);
+                ctx.fillText('Failed to load scores', 304, 225);
                 ctx.fillStyle = WHITE;
                 ctx.font = '18px Arial';
-                ctx.fillText('Check your connection', 304, 250);
+                ctx.fillText('Check your connection', 304, 255);
                 backButton.draw();
                 return;
             }
@@ -599,19 +1113,135 @@
             if (combined.length === 0) {
                 ctx.font = '30px Arial';
                 ctx.textAlign = 'center';
-                ctx.fillText('No scores yet!', 304, 240);
-                ctx.fillText('Be the first!', 304, 280);
+                ctx.fillText('No scores yet!', 304, 245);
+                ctx.fillText('Be the first!', 304, 285);
             } else {
                 ctx.font = '30px Arial';
                 ctx.textAlign = 'left';
-                let y = 160;
+                let y = 165;
                 const startIndex = scoreScrollIndex;
                 const endIndex = Math.min(startIndex + SCORES_PER_PAGE, combined.length);
 
                 for (let i = startIndex; i < endIndex; i++) {
                     const rank = i + 1;
-                    ctx.fillText(rank + '. ' + combined[i].user, 114, y);
-                    ctx.fillText(combined[i].score.toString(), 430, y);
+
+                    // Display rank
+                    ctx.fillStyle = WHITE;
+                    ctx.fillText(rank + '. ', 90, y);
+
+                    // Display username in skin color if available, otherwise white
+                    const rankText = rank + '. ';
+                    const rankWidth = ctx.measureText(rankText).width;
+                    let usernameX = 90 + rankWidth;
+
+                    // Check if skin exists and is not RAINBOW
+                    const skinValue = combined[i].skin;
+
+                    if (skinValue && String(skinValue).toUpperCase().trim() !== 'RAINBOW' && String(skinValue).toUpperCase().trim() !== 'HACKER' && String(skinValue).toUpperCase().trim() !== 'SPEED') {
+                        // Convert color name to hex code for display
+                        const colorNameToHex = {
+                            'RED': RED,
+                            'ORANGE': ORANGE,
+                            'YELLOW': YELLOW,
+                            'GREEN': GREEN,
+                            'BLUE': BLUE,
+                            'PURPLE': PURPLE,
+                            'DARK_PURPLE': DARK_PURPLE,
+                            'BLACK': BLACK,
+                            'GRAY': GRAY,
+                            'WHITE': WHITE,
+                            'DARKGREEN': DARKGREEN
+                        };
+                        // Convert to uppercase for case-insensitive matching and trim whitespace
+                        const skinUpper = String(skinValue).toUpperCase().trim();
+                        // Use color name mapping or fall back to original value (for backwards compatibility with hex codes)
+                        const displayColor = colorNameToHex[skinUpper];
+                        if (displayColor) {
+                            ctx.fillStyle = displayColor;
+                        } else {
+                            // If not found in mapping, try using as hex code directly
+                            ctx.fillStyle = skinValue;
+                        }
+                        // Ensure regular font for color entries
+                        ctx.font = '30px Arial';
+                        ctx.textAlign = 'left';
+                        ctx.fillText(combined[i].user, usernameX, y);
+                    } else if (combined[i].skin && combined[i].skin.toUpperCase() === 'RAINBOW') {
+                        // Draw each character in a different rainbow color (skip spaces when cycling)
+                        const username = combined[i].user;
+                        let colorIndex = 0; // Track color index, only advancing for non-space characters
+                        let lastUsedColorIndex = 0; // Track the last color used (for spaces)
+                        for (let j = 0; j < username.length; j++) {
+                            const char = username[j];
+                            // Only advance color index if character is not a space
+                            if (char !== ' ') {
+                                colorIndex = colorIndex % RAINBOW_COLORS.length;
+                                ctx.fillStyle = RAINBOW_COLORS[colorIndex];
+                                lastUsedColorIndex = colorIndex; // Remember this color for spaces
+                                colorIndex++; // Advance for next non-space character
+                            } else {
+                                // Spaces use the same color as the last non-space character
+                                ctx.fillStyle = RAINBOW_COLORS[lastUsedColorIndex];
+                            }
+                            ctx.fillText(char, usernameX, y);
+                            // Move x position for next character
+                            usernameX += ctx.measureText(char).width;
+                        }
+                        // Reset font after rainbow (in case it was changed)
+                        ctx.font = '30px Arial';
+                    } else if (combined[i].skin && combined[i].skin.toUpperCase() === 'SPEED') {
+                        // Draw username in dark red for speed skin
+                        ctx.fillStyle = DARK_RED;
+                        ctx.font = '30px Arial'; // Use same font size as regular entries
+                        ctx.textAlign = 'left';
+                        ctx.fillText(combined[i].user, usernameX, y);
+                    } else if (combined[i].skin && combined[i].skin.toUpperCase() === 'HACKER') {
+                        // Draw username as black with green neon outline (wider font)
+                        const username = combined[i].user;
+                        // Set wider font for hacker skin
+                        ctx.font = 'bold 30px Arial';
+                        // Draw black text
+                        ctx.fillStyle = BLACK;
+                        ctx.fillText(username, usernameX, y);
+                        // Draw green outline (stroke)
+                        ctx.strokeStyle = HACKER_GREEN;
+                        ctx.lineWidth = 2;
+                        ctx.strokeText(username, usernameX, y);
+                        usernameX += ctx.measureText(username).width;
+                        // Reset font back to normal for other elements
+                        ctx.font = '30px Arial';
+                    } else {
+                        // Default white
+                        ctx.fillStyle = WHITE;
+                        ctx.font = '30px Arial';
+                        ctx.textAlign = 'left';
+                        ctx.fillText(combined[i].user, usernameX, y);
+                    }
+
+                    // Display speed and score separately, aligned to the right
+                    ctx.textAlign = 'right';
+
+                    // Draw score first (rightmost)
+                    const scoreText = combined[i].score.toString();
+                    ctx.fillStyle = WHITE;
+                    ctx.fillText(scoreText, 520, y);
+
+                    // Draw speed with different color and spacing
+                    if (combined[i].speed !== null && combined[i].speed !== undefined) {
+                        let speedNum = combined[i].speed / 30;
+                        if (combined[i].speed === 15) speedNum = 0.5;
+                        const speedText = speedNum + 'x';
+
+                        // Measure score width to position speed correctly
+                        const scoreWidth = ctx.measureText(scoreText).width;
+                        const spacing = 20; // Space between speed and score
+
+                        ctx.fillStyle = ORANGE;
+                        ctx.fillText(speedText, 520 - scoreWidth - spacing, y);
+                    }
+
+                    ctx.fillStyle = WHITE;
+                    ctx.textAlign = 'left';
                     y += 40;
                 }
 
@@ -630,10 +1260,53 @@
             }
 
             backButton.draw();
+
+            // Display new skin unlock notification in top right
+            if (newSkinUnlocked) {
+                ctx.fillStyle = BLACK;
+                ctx.fillRect(450, 10, 150, 40);
+                ctx.fillStyle = GREEN;
+                ctx.font = 'bold 18px Arial';
+                ctx.textAlign = 'right';
+                ctx.fillText('New Skin Unlock', 590, 35);
+            }
+        }
+
+        // Update cached values when speed or color changes
+        function updateCachedValues() {
+            // Update multiplier
+            if (speed === 60) cachedMultiplier = 2;
+            else if (speed === 90) cachedMultiplier = 3;
+            else if (speed === 120) cachedMultiplier = 4;
+            else cachedMultiplier = 1;
+
+            // Update food color
+            cachedFoodColor = snakeColor === RED ? YELLOW : RED;
+
+            // Stop speed skin shake animation if switching away from speed skin
+            if (snakeColor !== SPEED && speedSkinShakeInterval) {
+                clearInterval(speedSkinShakeInterval);
+                speedSkinShakeInterval = null;
+                speedSkinShakeOffsets = [];
+            }
+            // Note: Speed button shake continues as long as speed skin is unlocked (not dependent on current selection)
         }
 
         // Start the game
         function startGame() {
+            // Stop 4x shake animation when leaving settings
+            if (shake4xInterval) {
+                clearInterval(shake4xInterval);
+                shake4xInterval = null;
+                shake4xOffsetX = 0;
+                shake4xOffsetY = 0;
+            }
+            // Stop speed skin shake animation when starting new game
+            if (speedSkinShakeInterval) {
+                clearInterval(speedSkinShakeInterval);
+                speedSkinShakeInterval = null;
+                speedSkinShakeOffsets = [];
+            }
             currentScreen = 'game';
             score = 0;
             snakeList = [];
@@ -643,6 +1316,9 @@
             snakeXChange = 0;
             snakeYChange = 0;
             direction = 100;
+
+            // Update cached values
+            updateCachedValues();
 
             // Random food position
             foodX = Math.floor(Math.random() * (608 - 20));
@@ -665,13 +1341,9 @@
             snakeX += snakeXChange;
             snakeY += snakeYChange;
 
-            // Calculate multiplier based on speed
-            let multiplier = 1;
-            if (speed === 60) multiplier = 2;
-            else if (speed === 90) multiplier = 3;
-
-            // Food color (opposite of snake)
-            let foodColor = snakeColor === RED ? YELLOW : RED;
+            // Use cached multiplier and food color (updated when speed/snakeColor changes)
+            let multiplier = cachedMultiplier;
+            let foodColor = cachedFoodColor;
 
             // Draw
             ctx.fillStyle = BLACK;
@@ -683,20 +1355,55 @@
             ctx.textAlign = 'left';
             ctx.fillText('Score: ' + score, 10, 35);
 
-            // Multiplier
+            // Cover notification area with black rectangle, then draw multiplier
+            ctx.fillStyle = BLACK;
+            ctx.fillRect(450, 10, 150, 40);
+
+            // Multiplier (only the number in orange to match leaderboard speed color)
             ctx.textAlign = 'right';
-            ctx.fillText('Multiplier (' + multiplier + 'x)', 598, 35);
+            const multiplierText = multiplier + 'x';
+            const prefixText = 'Multiplier (';
+            const suffixText = ')';
+            const multiplierWidth = ctx.measureText(multiplierText).width;
+            const suffixWidth = ctx.measureText(suffixText).width;
+
+            // Draw "Multiplier (" in white
+            ctx.fillStyle = WHITE;
+            ctx.fillText(prefixText, 598 - multiplierWidth - suffixWidth, 35);
+
+            // Draw multiplier number in orange (or red if 4x)
+            if (multiplier === 4) {
+                ctx.fillStyle = RED;
+            } else {
+                ctx.fillStyle = ORANGE;
+            }
+            ctx.fillText(multiplierText, 598 - suffixWidth, 35);
+
+            // Draw closing ")" in white
+            ctx.fillStyle = WHITE;
+            ctx.fillText(suffixText, 598, 35);
 
             // Food
             ctx.fillStyle = foodColor;
             ctx.fillRect(foodX, foodY, 20, 20);
 
-            // Snake
-            let segment = [snakeX, snakeY];
-            snakeList.push(segment);
+            // Snake - add new segment
+            snakeList.push([snakeX, snakeY]);
 
+            // Update speed skin shake offsets array length if needed
+            if (snakeColor === SPEED && speedSkinShakeOffsets.length < snakeList.length) {
+                // Add new shake offset for the new segment
+                speedSkinShakeOffsets.push({ x: 0, y: 0 });
+            }
+
+            // Remove old segments efficiently (only if needed)
             if (snakeList.length > snakeLength) {
-                snakeList.shift();
+                const removeCount = snakeList.length - snakeLength;
+                snakeList.splice(0, removeCount);
+                // Also remove corresponding shake offsets if speed skin is active
+                if (snakeColor === SPEED && speedSkinShakeOffsets.length >= removeCount) {
+                    speedSkinShakeOffsets.splice(0, removeCount);
+                }
             }
 
             // Check self collision
@@ -709,11 +1416,64 @@
 
             // Draw snake
             if (snakeColor === RAINBOW) {
-                // Draw each segment in rainbow colors
+                // Draw each segment with color based on position
                 for (let i = 0; i < snakeList.length; i++) {
-                    const colorIndex = i % RAINBOW_COLORS.length;
+                    const x = snakeList[i][0];
+                    const y = snakeList[i][1];
+                    // Use position to determine color - creates smooth gradient across the canvas
+                    // Combine x and y for diagonal gradient effect
+                    const positionValue = (x + y * 0.7) % (RAINBOW_COLORS.length * 30);
+                    const colorIndex = Math.floor(positionValue / 30) % RAINBOW_COLORS.length;
                     ctx.fillStyle = RAINBOW_COLORS[colorIndex];
-                    ctx.fillRect(snakeList[i][0], snakeList[i][1], 20, 20);
+                    ctx.fillRect(x, y, 20, 20);
+                }
+            } else if (snakeColor === SPEED) {
+                // Draw speed skin in dark red with shake effect (visual only, doesn't affect hitbox)
+                ctx.fillStyle = DARK_RED;
+
+                // Initialize shake offsets array if needed
+                if (speedSkinShakeOffsets.length !== snakeList.length) {
+                    speedSkinShakeOffsets = new Array(snakeList.length).fill(null).map(() => ({ x: 0, y: 0 }));
+                }
+
+                // Start shake animation if not already running
+                if (!speedSkinShakeInterval) {
+                    speedSkinShakeInterval = setInterval(function () {
+                        // Update shake offsets for each segment (more aggressive: random offset between -4 and 4 pixels)
+                        for (let i = 0; i < speedSkinShakeOffsets.length; i++) {
+                            speedSkinShakeOffsets[i].x = (Math.random() - 0.5) * 8;
+                            speedSkinShakeOffsets[i].y = (Math.random() - 0.5) * 8;
+                        }
+                        // Redraw game screen if still in game
+                        if (currentScreen === 'game') {
+                            gameLoop();
+                        }
+                    }, 50); // Update every 50ms for smooth animation
+                }
+
+                // Draw each segment with shake offset (visual position only)
+                for (let i = 0; i < snakeList.length; i++) {
+                    const baseX = snakeList[i][0]; // Actual position (used for collision)
+                    const baseY = snakeList[i][1]; // Actual position (used for collision)
+                    const shakeX = speedSkinShakeOffsets[i] ? speedSkinShakeOffsets[i].x : 0;
+                    const shakeY = speedSkinShakeOffsets[i] ? speedSkinShakeOffsets[i].y : 0;
+                    // Draw at visual position (base + shake), but collision uses base position
+                    ctx.fillRect(baseX + shakeX, baseY + shakeY, 20, 20);
+                }
+            } else if (snakeColor === HACKER) {
+                // Draw each segment as black with green neon outline on every other segment
+                // First block (i=0) has outline, then every other one
+                ctx.fillStyle = BLACK;
+                for (let i = 0; i < snakeList.length; i++) {
+                    const x = snakeList[i][0];
+                    const y = snakeList[i][1];
+                    ctx.fillRect(x, y, 20, 20);
+                    // Draw green outline on every other segment (starting with first)
+                    if (i % 2 === 0) {
+                        ctx.strokeStyle = HACKER_GREEN;
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(x, y, 20, 20);
+                    }
                 }
             } else {
                 ctx.fillStyle = snakeColor;
@@ -724,6 +1484,21 @@
 
             // Check food collision
             if (Math.abs(snakeX - foodX) < 20 && Math.abs(snakeY - foodY) < 20) {
+                // Play sound immediately when collision detected (before any processing)
+                if (!isMuted) {
+                    // Switch between two instances to avoid delay from reset
+                    if (currentBloopSound === bloopSound) {
+                        currentBloopSound = bloopSound2;
+                    } else {
+                        currentBloopSound = bloopSound;
+                    }
+                    currentBloopSound.currentTime = 0; // Reset to start
+                    currentBloopSound.play().catch(err => {
+                        console.error('Error playing bloop.mp3:', err);
+                    });
+                }
+
+                // Process food collision
                 score += (1 * multiplier);
                 foodX = Math.floor(Math.random() * (608 - 20));
                 foodY = Math.floor(Math.random() * (480 - 20));
@@ -734,22 +1509,28 @@
         // Game over
         function gameOver() {
             if (gameInterval) clearInterval(gameInterval);
+            // Stop speed skin shake animation when game ends
+            if (speedSkinShakeInterval) {
+                clearInterval(speedSkinShakeInterval);
+                speedSkinShakeInterval = null;
+                speedSkinShakeOffsets = [];
+            }
             currentScreen = 'gameover';
             usernameInput = '';
             scoreSubmitted = false;
 
-            // Unlock rainbow skin if score >= 20
-            let justUnlocked = false;
-            if (score >= 20 && !isRainbowUnlocked()) {
+            // Unlock rainbow skin if score >= 150
+            const wasRainbowUnlocked = isRainbowUnlocked();
+            if (score >= 3 && !wasRainbowUnlocked) {
                 unlockRainbow();
-                justUnlocked = true;
+                newSkinUnlocked = true; // Show notification immediately
             }
 
-            drawGameOverScreen(justUnlocked);
+            drawGameOverScreen();
         }
 
         // Draw game over screen
-        function drawGameOverScreen(justUnlocked = false) {
+        function drawGameOverScreen() {
             ctx.fillStyle = BLACK;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -765,17 +1546,21 @@
             ctx.font = '30px Arial';
             ctx.fillText('Score: ' + score, 304, 180);
 
-            // Show unlock message if rainbow was just unlocked
-            if (justUnlocked) {
-                ctx.fillStyle = YELLOW;
-                ctx.font = 'bold 24px Arial';
-                ctx.fillText('New skin unlocked!', 304, 210);
-                ctx.fillStyle = WHITE;
-            }
-
-            // Username prompt
+            // Username prompt (draw before notification to ensure proper settings)
             ctx.font = '30px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = WHITE;
             ctx.fillText('Username (3-20 chars):', 304, 240);
+
+            // Display new skin unlock notification in top right (draw last so it's on top)
+            if (newSkinUnlocked) {
+                ctx.fillStyle = BLACK;
+                ctx.fillRect(450, 10, 150, 40);
+                ctx.fillStyle = GREEN;
+                ctx.font = 'bold 18px Arial';
+                ctx.textAlign = 'right';
+                ctx.fillText('New Skin Unlock', 590, 35);
+            }
 
             // Input box (centered)
             const inputBoxWidth = 230;
@@ -835,6 +1620,9 @@
             if (!validation.valid) {
                 // Show error message (we'll display it on the game over screen)
                 alert(validation.error);
+                scoreSubmitted = false; // Re-enable if validation fails
+                submitButton.color = GREEN;
+                drawGameOverScreen();
                 return;
             }
 
@@ -843,12 +1631,14 @@
             drawGameOverScreen();
 
             try {
-                const result = await submitScore(validation.username, score);
+                const result = await submitScore(validation.username, score, speed, snakeColor);
 
                 // Update local lists with fresh data from server
                 if (result.topScores && result.topScores.length > 0) {
                     userList = result.topScores.map(s => s.username);
                     scoreList = result.topScores.map(s => s.score);
+                    speedList = result.topScores.map(s => s.speed || null);
+                    skinList = result.topScores.map(s => s.skin || null);
                 }
 
                 scoreSubmitted = true;

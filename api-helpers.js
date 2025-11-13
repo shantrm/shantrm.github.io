@@ -123,14 +123,14 @@ async function getTopScores(limit = 50) {
     }
 
     try {
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_top_scores`, {
-            method: 'POST',
+        // Query the table directly to include speed and skin columns
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/highscores?select=username,score,speed,skin&order=score.desc&limit=${limit}`, {
+            method: 'GET',
             headers: {
                 'apikey': SUPABASE_KEY,
                 'Authorization': `Bearer ${SUPABASE_KEY}`,
                 'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ limit_count: limit })
+            }
         });
 
         if (!response.ok) {
@@ -146,55 +146,57 @@ async function getTopScores(limit = 50) {
 }
 
 /**
- * Get the client's IP address using a free IP lookup service
- * @returns {Promise<string|null>} IP address or null if unable to fetch
+ * Convert hex color code to color name
+ * @param {string} hexColor - Hex color code (e.g., '#FF0000')
+ * @returns {string} Color name (e.g., 'RED') or original value if not recognized
  */
-async function getClientIP() {
-    try {
-        // Try multiple IP lookup services for reliability
-        const services = [
-            { url: 'https://api.ipify.org?format=json', name: 'ipify' },
-            { url: 'https://api64.ipify.org?format=json', name: 'ipify64' },
-            { url: 'https://ipapi.co/json/', name: 'ipapi' },
-            { url: 'https://api.myip.com', name: 'myip' }
-        ];
-
-        for (const service of services) {
-            try {
-                const response = await fetch(service.url, {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/json'
-                    }
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-
-                    // Different services return IP in different formats
-                    const ip = data.ip || data.query || data.IPv4 || null;
-                    if (ip && typeof ip === 'string') {
-                        return ip.trim();
-                    }
-                }
-            } catch (err) {
-                continue;
-            }
-        }
-
-        return null;
-    } catch (error) {
-        return null;
+function hexToColorName(hexColor) {
+    // Handle special values
+    const colorStr = String(hexColor).trim();
+    if (colorStr.toUpperCase() === 'RAINBOW') {
+        return 'RAINBOW';
     }
+    if (colorStr.toUpperCase() === 'HACKER') {
+        return 'HACKER';
+    }
+    if (colorStr.toUpperCase() === 'SPEED') {
+        return 'SPEED';
+    }
+
+    const colorMap = {
+        '#FF0000': 'RED',
+        '#FFA500': 'ORANGE',
+        '#E1FF00': 'YELLOW',
+        '#00FF00': 'GREEN',
+        '#0000FF': 'BLUE',
+        '#FF00FF': 'PURPLE',
+        '#800080': 'DARK_PURPLE',
+        '#000000': 'BLACK',
+        '#C8C8C8': 'GRAY',
+        '#FFFFFF': 'WHITE',
+        '#008000': 'DARKGREEN'
+    };
+
+    // If it's already a color name, return as is
+    const colorNames = Object.values(colorMap);
+    if (colorNames.includes(colorStr.toUpperCase())) {
+        return colorStr.toUpperCase();
+    }
+
+    // Convert hex to uppercase for comparison and map to color name
+    const upperHex = colorStr.toUpperCase();
+    return colorMap[upperHex] || colorStr; // Return mapped name or original if not found
 }
 
 /**
  * Submit a score to the database
  * @param {string} username - Username (will be validated server-side)
  * @param {number} score - Score value (will be validated server-side)
+ * @param {number} speed - Speed value (optional, will be saved if provided)
+ * @param {string} skin - Skin/color value (optional, will be saved if provided)
  * @returns {Promise<Object>} Response object with success status and updated scores
  */
-async function submitScore(username, score) {
+async function submitScore(username, score, speed = null, skin = null) {
     // Ensure config is initialized
     if (!SUPABASE_URL || !SUPABASE_KEY) {
         initSupabaseConfig();
@@ -223,18 +225,21 @@ async function submitScore(username, score) {
             throw new Error('Score must be a non-negative number');
         }
 
-        // Get client IP address
-        const ipAddress = await getClientIP();
-
         // Prepare the request body
         const requestBody = {
             username: username.trim(),
             score: Math.floor(score) // Ensure integer
         };
 
-        // Add IP address if available (column type: inet in Supabase)
-        if (ipAddress) {
-            requestBody.ip_address = ipAddress;
+        // Add speed if provided
+        if (speed !== null && speed !== undefined) {
+            requestBody.speed = Math.floor(speed);
+        }
+
+        // Add skin if provided (convert hex code to color name)
+        if (skin !== null && skin !== undefined) {
+            const skinValue = skin.toString();
+            requestBody.skin = hexToColorName(skinValue);
         }
 
         const response = await fetch(`${SUPABASE_URL}/rest/v1/highscores`, {
