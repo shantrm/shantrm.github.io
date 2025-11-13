@@ -1817,7 +1817,7 @@
 
             // Unlock rainbow skin if score >= 150
             const wasRainbowUnlocked = isRainbowUnlocked();
-            if (score >= 3 && !wasRainbowUnlocked) {
+            if (score >= 150 && !wasRainbowUnlocked) {
                 unlockRainbow();
                 newSkinUnlocked = true; // Show notification immediately
             }
