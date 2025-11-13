@@ -353,19 +353,6 @@
                 return originalDebug.apply(console, args);
             };
 
-            // Also detect direct console evaluation by overriding console object getter
-            // This catches when user types something like: console.log("test") or just evaluates expressions
-            try {
-                Object.defineProperty(window, 'console', {
-                    get: function () {
-                        unlockIfNeeded();
-                        return console;
-                    },
-                    configurable: true
-                });
-            } catch (e) {
-                // If defineProperty fails, the console method overrides above should still work
-            }
         }
 
         // Callback when DevTools is opened
