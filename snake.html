@@ -309,32 +309,63 @@
 
         let currentBloopSound = bloopSound;
 
-        // Detect DevTools opening using window size detection
-        let devToolsInterval = null;
-        let wasDevToolsOpen = false; // Track if DevTools was previously open (persists across interval calls)
-        function detectDevTools() {
-            const threshold = 50; // More sensitive threshold (reduced from 160 to 50)
-            // Clear any existing interval
-            if (devToolsInterval) clearInterval(devToolsInterval);
-            devToolsInterval = setInterval(function () {
-                const widthDiff = window.outerWidth - window.innerWidth;
-                const heightDiff = window.outerHeight - window.innerHeight;
+        // Detect console usage to unlock hacker skin
+        let consoleUnlocked = false; // Track if hacker skin was unlocked via console
+        function detectConsoleUsage() {
+            // Override console methods to detect when user types in console
+            const originalLog = console.log;
+            const originalError = console.error;
+            const originalWarn = console.warn;
+            const originalInfo = console.info;
+            const originalDebug = console.debug;
 
-                if (widthDiff > threshold || heightDiff > threshold) {
-                    if (!devToolsOpen) {
-                        devToolsOpen = true;
-                        if (!wasDevToolsOpen) {
-                            wasDevToolsOpen = true;
-                            onDevToolsOpen();
-                        }
-                    }
-                } else {
-                    if (devToolsOpen) {
-                        devToolsOpen = false;
-                        // Don't reset wasDevToolsOpen here - keep it true so we know it was opened at least once
-                    }
+            // Function to unlock hacker skin if not already unlocked
+            const unlockIfNeeded = function () {
+                if (!consoleUnlocked) {
+                    consoleUnlocked = true;
+                    onDevToolsOpen();
                 }
-            }, 500);
+            };
+
+            // Override console methods
+            console.log = function (...args) {
+                unlockIfNeeded();
+                return originalLog.apply(console, args);
+            };
+
+            console.error = function (...args) {
+                unlockIfNeeded();
+                return originalError.apply(console, args);
+            };
+
+            console.warn = function (...args) {
+                unlockIfNeeded();
+                return originalWarn.apply(console, args);
+            };
+
+            console.info = function (...args) {
+                unlockIfNeeded();
+                return originalInfo.apply(console, args);
+            };
+
+            console.debug = function (...args) {
+                unlockIfNeeded();
+                return originalDebug.apply(console, args);
+            };
+
+            // Also detect direct console evaluation by overriding console object getter
+            // This catches when user types something like: console.log("test") or just evaluates expressions
+            try {
+                Object.defineProperty(window, 'console', {
+                    get: function () {
+                        unlockIfNeeded();
+                        return console;
+                    },
+                    configurable: true
+                });
+            } catch (e) {
+                // If defineProperty fails, the console method overrides above should still work
+            }
         }
 
         // Callback when DevTools is opened
@@ -367,13 +398,14 @@
 
         // Initialize game
         async function init() {
-            // Check if hacker skin was previously unlocked (in case DevTools detection fails)
+            // Check if hacker skin was previously unlocked
             const hackerUnlocked = localStorage.getItem('snakeHackerUnlocked');
             if (hackerUnlocked === 'true') {
                 // Hacker skin is already unlocked, ensure it's available
                 devToolsOpen = true; // Set flag so isHackerUnlocked() returns true
+                consoleUnlocked = true; // Mark as already unlocked
             }
-            detectDevTools(); // Start DevTools detection
+            detectConsoleUsage(); // Start console usage detection
             drawStartScreen();
 
             // Preload profanity wordlist (async, don't block UI)
