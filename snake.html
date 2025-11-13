@@ -353,6 +353,35 @@
                 return originalDebug.apply(console, args);
             };
 
+            // Detect errors thrown in console (like typing undefined variables)
+            // This catches ReferenceError, TypeError, etc. that occur when user types in console
+            const originalOnError = window.onerror;
+            window.onerror = function (message, source, lineno, colno, error) {
+                // Check if error is likely from console input (not from page code)
+                // Console errors typically have source as "<anonymous>" or are ReferenceErrors
+                if (error && (error.name === 'ReferenceError' || error.name === 'TypeError' || error.name === 'SyntaxError')) {
+                    // Check if it's from console (source is "<anonymous>" or empty)
+                    if (!source || source.includes('<anonymous>') || source === '') {
+                        unlockIfNeeded();
+                    }
+                }
+                // Call original error handler if it exists
+                if (originalOnError) {
+                    return originalOnError.apply(window, arguments);
+                }
+                return false;
+            };
+
+            // Also use addEventListener for error events (more modern approach)
+            window.addEventListener('error', function (event) {
+                // Check if error is from console input
+                if (event.error && (event.error.name === 'ReferenceError' || event.error.name === 'TypeError' || event.error.name === 'SyntaxError')) {
+                    // Check if source is from console
+                    if (!event.filename || event.filename.includes('<anonymous>') || event.filename === '') {
+                        unlockIfNeeded();
+                    }
+                }
+            }, true); // Use capture phase to catch all errors
         }
 
         // Callback when DevTools is opened
