@@ -135,9 +135,16 @@
         let skinList = [];
         let scoreScrollIndex = 0; // Current scroll position for highscores
         const SCORES_PER_PAGE = 5; // Number of scores to show at once
-        const MAX_HIGHSCORES = 50; // Maximum number of highscores to keep
+        const CHUNK_SIZE = 50; // Number of scores to load at a time
+        let loadedChunks = 0; // Number of chunks loaded (0 = none, 1 = first 50, 2 = first 100, etc.)
         let isLoadingScores = false;
         let scoresLoadError = null;
+        let submittedScoreInfo = null; // Store submitted score info {score, username} for leaderboard jump
+        let showSubmittedMessage = false; // Show "Submitted! Click for Leaderboard" message
+        let blinkingScoreIndex = null; // Index of score that should blink (for highlighting)
+        let blinkAnimationInterval = null; // Interval for blink animation
+        let blinkBrightness = 1.0; // Brightness factor for blinking (1.0 = normal, 0.5 = dim)
+        let blinkGoingDown = true; // Direction of blink animation (true = dimming, false = brightening)
 
         // Check if rainbow skin is unlocked
         function isRainbowUnlocked() {
@@ -166,19 +173,22 @@
             localStorage.setItem('snakeRainbowUnlocked', 'true');
         }
 
-        // Load highscores from API
-        async function loadHighscores() {
+        // Load highscores from API (chunked loading)
+        async function loadHighscores(chunkNumber = 1) {
             isLoadingScores = true;
             scoresLoadError = null;
 
             try {
-                const scores = await getTopScores(MAX_HIGHSCORES);
+                const limit = chunkNumber * CHUNK_SIZE;
+                const scores = await getTopScores(limit);
 
                 // Convert API response to local format
                 userList = scores.map(s => s.username);
                 scoreList = scores.map(s => s.score);
                 speedList = scores.map(s => s.speed || null);
                 skinList = scores.map(s => s.skin || null);
+
+                loadedChunks = chunkNumber;
 
                 // If no scores, initialize with empty arrays (no default score)
                 if (userList.length === 0) {
@@ -198,6 +208,112 @@
             } finally {
                 isLoadingScores = false;
             }
+        }
+
+        // Load additional chunks if needed
+        async function loadMoreChunksIfNeeded(neededChunks) {
+            if (neededChunks > loadedChunks && !isLoadingScores) {
+                await loadHighscores(neededChunks);
+            }
+        }
+
+        // Find the chunk containing a specific score (optimized with larger initial loads)
+        async function findScoreChunk(targetScore, targetUsername) {
+            // Strategy: Load larger chunks first to find the score faster
+            // Start with 200 scores, then 500, then 1000, etc.
+            const searchChunkSizes = [200, 500, 1000, 2000, 5000];
+
+            for (let searchSize of searchChunkSizes) {
+                const chunkNum = Math.ceil(searchSize / CHUNK_SIZE);
+                await loadHighscores(chunkNum);
+                const combined = userList.map((user, i) => ({ user, score: scoreList[i], speed: speedList[i], skin: skinList[i] }));
+
+                // Find the score in the current loaded scores
+                const scoreIndex = combined.findIndex(s => s.score === targetScore && s.user === targetUsername);
+                if (scoreIndex !== -1) {
+                    // Found the score, return the chunk and index
+                    return { chunkNum, index: scoreIndex };
+                }
+
+                // If we loaded fewer scores than requested, we've reached the end
+                if (userList.length < searchSize) {
+                    // Score not found in database, return first chunk
+                    return { chunkNum: 1, index: 0 };
+                }
+            }
+
+            // If still not found after loading 5000 scores, it's probably not in top 5000
+            // Return first chunk
+            return { chunkNum: 1, index: 0 };
+        }
+
+        // Start blink animation for highlighted score
+        function startBlinkAnimation() {
+            // Stop existing animation if any
+            if (blinkAnimationInterval) {
+                clearInterval(blinkAnimationInterval);
+            }
+
+            // Start with bright state
+            blinkBrightness = 1.0;
+            blinkGoingDown = true;
+
+            // Start animation interval - toggle between two states
+            blinkAnimationInterval = setInterval(function () {
+                // Toggle between bright (1.0) and dim (0.4) states
+                if (blinkBrightness === 1.0) {
+                    blinkBrightness = 0.4; // Switch to dim
+                } else {
+                    blinkBrightness = 1.0; // Switch to bright
+                }
+
+                // Redraw score screen if still on score screen
+                if (currentScreen === 'score') {
+                    showScoreScreen(false, null); // Don't reload from API, just redraw
+                }
+            }, 400); // Toggle every 400ms for clear on/off blinking
+
+            // Stop animation after 5 seconds
+            setTimeout(function () {
+                stopBlinkAnimation();
+            }, 5000);
+        }
+
+        // Stop blink animation
+        function stopBlinkAnimation() {
+            if (blinkAnimationInterval) {
+                clearInterval(blinkAnimationInterval);
+                blinkAnimationInterval = null;
+            }
+            blinkBrightness = 1.0;
+            blinkGoingDown = true;
+            blinkingScoreIndex = null;
+            // Redraw score screen if still on score screen
+            if (currentScreen === 'score') {
+                showScoreScreen(false, null); // Don't reload from API, just redraw
+            }
+        }
+
+        // Helper function to apply brightness to a hex color
+        function applyBrightness(color, brightness) {
+            if (brightness >= 1.0) return color;
+
+            // Convert hex to RGB
+            const hex = color.replace('#', '');
+            const r = parseInt(hex.substr(0, 2), 16);
+            const g = parseInt(hex.substr(2, 2), 16);
+            const b = parseInt(hex.substr(4, 2), 16);
+
+            // Apply brightness (multiply by brightness factor)
+            const newR = Math.round(r * brightness);
+            const newG = Math.round(g * brightness);
+            const newB = Math.round(b * brightness);
+
+            // Convert back to hex
+            return '#' +
+                newR.toString(16).padStart(2, '0') +
+                newG.toString(16).padStart(2, '0') +
+                newB.toString(16).padStart(2, '0');
         }
 
         // Button class (matching Python button class)
@@ -462,6 +578,7 @@
                 }
             } else if (currentScreen === 'score') {
                 if (backButton.isOver(mouseX, mouseY)) {
+                    stopBlinkAnimation(); // Stop blink animation when leaving score screen
                     drawStartScreen();
                 } else if (upArrowBtn.isOver(mouseX, mouseY)) {
                     if (scoreScrollIndex > 0) {
@@ -472,11 +589,27 @@
                 } else if (downArrowBtn.isOver(mouseX, mouseY)) {
                     const combined = userList.map((user, i) => ({ user, score: scoreList[i], speed: speedList[i], skin: skinList[i] }));
                     combined.sort((a, b) => b.score - a.score);
-                    const maxScroll = Math.max(0, combined.length - SCORES_PER_PAGE);
-                    if (scoreScrollIndex < maxScroll) {
-                        scoreScrollIndex += SCORES_PER_PAGE;
-                        if (scoreScrollIndex > maxScroll) scoreScrollIndex = maxScroll;
-                        showScoreScreen(false); // Don't reload from API on scroll
+                    const newScrollIndex = scoreScrollIndex + SCORES_PER_PAGE;
+
+                    // Check if we need to load more chunks
+                    const neededChunks = Math.ceil((newScrollIndex + SCORES_PER_PAGE) / CHUNK_SIZE);
+                    if (neededChunks > loadedChunks) {
+                        // Load more chunks first
+                        loadMoreChunksIfNeeded(neededChunks).then(() => {
+                            // After loading, recalculate and scroll
+                            const updatedCombined = userList.map((user, i) => ({ user, score: scoreList[i], speed: speedList[i], skin: skinList[i] }));
+                            updatedCombined.sort((a, b) => b.score - a.score);
+                            const maxScroll = Math.max(0, updatedCombined.length - SCORES_PER_PAGE);
+                            scoreScrollIndex = Math.min(newScrollIndex, maxScroll);
+                            showScoreScreen(false); // Don't reload from API on scroll
+                        });
+                    } else {
+                        const maxScroll = Math.max(0, combined.length - SCORES_PER_PAGE);
+                        if (scoreScrollIndex < maxScroll) {
+                            scoreScrollIndex += SCORES_PER_PAGE;
+                            if (scoreScrollIndex > maxScroll) scoreScrollIndex = maxScroll;
+                            showScoreScreen(false); // Don't reload from API on scroll
+                        }
                     }
                 }
             } else if (currentScreen === 'settings') {
@@ -666,12 +799,38 @@
                 }
             } else if (currentScreen === 'gameover') {
                 if (homeButton.isOver(mouseX, mouseY)) {
+                    showSubmittedMessage = false; // Clear message when leaving
+                    submittedScoreInfo = null;
                     drawStartScreen();
                 } else if (retryButton.isOver(mouseX, mouseY)) {
+                    showSubmittedMessage = false; // Clear message when starting new game
+                    submittedScoreInfo = null;
                     startGame();
                 } else if (submitButton.isOver(mouseX, mouseY) && !scoreSubmitted && usernameInput.trim() !== '') {
                     scoreSubmitted = true; // Prevent multiple clicks immediately
                     submitScoreToAPI();
+                } else if (showSubmittedMessage && scoreSubmitted) {
+                    // Check if click is on the "Submitted! Click for Leaderboard" message
+                    // Message is centered at x=304, y=395, approximate width ~300px, height ~25px
+                    const messageX = 304;
+                    const messageY = 395;
+                    const messageWidth = 300;
+                    const messageHeight = 25;
+                    if (mouseX >= messageX - messageWidth / 2 && mouseX <= messageX + messageWidth / 2 &&
+                        mouseY >= messageY - messageHeight / 2 && mouseY <= messageY + messageHeight / 2) {
+                        // Clicked on message - jump to leaderboard and find the submitted score
+                        if (submittedScoreInfo) {
+                            (async () => {
+                                const result = await findScoreChunk(submittedScoreInfo.score, submittedScoreInfo.username);
+                                // Set blinking score index to highlight the submitted score
+                                blinkingScoreIndex = result.index;
+                                startBlinkAnimation();
+                                showScoreScreen(true, result.index); // Reload from API and jump to index
+                            })();
+                        } else {
+                            showScoreScreen(true);
+                        }
+                    }
                 }
             }
         }
@@ -753,6 +912,20 @@
             } else if (currentScreen === 'gameover') {
                 let newHomeColor = homeButton.isOver(mouseX, mouseY) ? WHITE : GRAY;
                 let newRetryColor = retryButton.isOver(mouseX, mouseY) ? WHITE : GRAY;
+
+                // Check if hovering over the "Submitted! Click for Leaderboard" message
+                let isHoveringMessage = false;
+                if (showSubmittedMessage && scoreSubmitted) {
+                    const messageX = 304;
+                    const messageY = 395;
+                    const messageWidth = 300;
+                    const messageHeight = 25;
+                    isHoveringMessage = (mouseX >= messageX - messageWidth / 2 && mouseX <= messageX + messageWidth / 2 &&
+                        mouseY >= messageY - messageHeight / 2 && mouseY <= messageY + messageHeight / 2);
+                }
+
+                // Change cursor style
+                canvas.style.cursor = isHoveringMessage ? 'pointer' : 'default';
 
                 if (homeButton.color !== newHomeColor || retryButton.color !== newRetryColor) {
                     homeButton.color = newHomeColor;
@@ -1019,14 +1192,14 @@
                 // Start shake animation for unlocked speed button if not already running
                 if (!speedButtonShakeInterval) {
                     speedButtonShakeInterval = setInterval(function () {
-                        // Update shake offset (aggressive: random offset between -4 and 4 pixels)
-                        speedButtonShakeOffsetX = (Math.random() - 0.5) * 8;
-                        speedButtonShakeOffsetY = (Math.random() - 0.5) * 8;
+                        // Update shake offset (reduced: random offset between -2 and 2 pixels)
+                        speedButtonShakeOffsetX = (Math.random() - 0.5) * 4;
+                        speedButtonShakeOffsetY = (Math.random() - 0.5) * 4;
                         // Redraw settings screen if still on settings
                         if (currentScreen === 'settings') {
                             showSettingsScreen();
                         }
-                    }, 50); // Update every 50ms for smooth animation
+                    }, 75); // Update every 75ms for smoother, less aggressive animation
                 }
                 // Draw button with shake offset
                 ctx.fillStyle = DARK_RED;
@@ -1096,7 +1269,7 @@
         }
 
         // Show score screen
-        async function showScoreScreen(reloadFromAPI = true) {
+        async function showScoreScreen(reloadFromAPI = true, targetIndex = null) {
             // Stop 4x shake animation when leaving settings
             if (shake4xInterval) {
                 clearInterval(shake4xInterval);
@@ -1111,24 +1284,71 @@
                 speedButtonShakeOffsetX = 0;
                 speedButtonShakeOffsetY = 0;
             }
+            // Don't stop blink animation here - it should continue if already running
             currentScreen = 'score';
             ctx.fillStyle = BLACK;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             // Reload scores from API only if requested (not on scroll)
             if (reloadFromAPI) {
-                await loadHighscores();
+                await loadHighscores(1); // Load first chunk
             }
 
             // Combine and sort (already sorted by API, but ensure consistency)
             let combined = userList.map((user, i) => ({ user, score: scoreList[i], speed: speedList[i], skin: skinList[i] }));
             combined.sort((a, b) => b.score - a.score);
-            combined = combined.slice(0, MAX_HIGHSCORES); // Limit to 50
+
+            // If targetIndex is provided, scroll to that index
+            if (targetIndex !== null) {
+                // Calculate which chunk contains this index
+                const neededChunks = Math.ceil((targetIndex + 1) / CHUNK_SIZE);
+                await loadMoreChunksIfNeeded(neededChunks);
+                // Reload combined after loading more chunks
+                combined = userList.map((user, i) => ({ user, score: scoreList[i], speed: speedList[i], skin: skinList[i] }));
+                combined.sort((a, b) => b.score - a.score);
+
+                // Center the target score in the middle (3rd position) of the 5 scores displayed
+                const middlePosition = Math.floor(SCORES_PER_PAGE / 2); // 2 (for 5 scores, middle is index 2)
+                let desiredScrollIndex = targetIndex - middlePosition;
+
+                // Handle edge cases
+                if (desiredScrollIndex < 0) {
+                    // Target is near the top, start at 0
+                    desiredScrollIndex = 0;
+                } else if (desiredScrollIndex + SCORES_PER_PAGE > combined.length) {
+                    // Target is near the bottom, show last page
+                    desiredScrollIndex = Math.max(0, combined.length - SCORES_PER_PAGE);
+                }
+
+                scoreScrollIndex = desiredScrollIndex;
+
+                // Set blinking score index if not already set
+                if (blinkingScoreIndex === null) {
+                    blinkingScoreIndex = targetIndex;
+                }
+                // Start blink animation if not already running
+                if (!blinkAnimationInterval) {
+                    startBlinkAnimation();
+                }
+            }
 
             // Reset scroll if out of bounds
             const maxScroll = Math.max(0, combined.length - SCORES_PER_PAGE);
             if (scoreScrollIndex > maxScroll) {
                 scoreScrollIndex = maxScroll;
+            }
+
+            // Check if we need to load more chunks based on current scroll position
+            const currentEndIndex = scoreScrollIndex + SCORES_PER_PAGE;
+            const neededChunks = Math.ceil(currentEndIndex / CHUNK_SIZE);
+            if (neededChunks > loadedChunks && !isLoadingScores) {
+                // Load more chunks in background
+                loadMoreChunksIfNeeded(neededChunks).then(() => {
+                    // Redraw if still on score screen
+                    if (currentScreen === 'score') {
+                        showScoreScreen(false, null); // Don't reload from API, just redraw
+                    }
+                });
             }
 
             // Title
@@ -1175,6 +1395,14 @@
 
                 for (let i = startIndex; i < endIndex; i++) {
                     const rank = i + 1;
+                    const isBlinking = (blinkingScoreIndex !== null && i === blinkingScoreIndex);
+
+                    // Apply brightness/dimming if this score is blinking
+                    if (isBlinking) {
+                        ctx.globalAlpha = blinkBrightness;
+                    } else {
+                        ctx.globalAlpha = 1.0;
+                    }
 
                     // Display rank
                     ctx.fillStyle = WHITE;
@@ -1293,6 +1521,10 @@
 
                     ctx.fillStyle = WHITE;
                     ctx.textAlign = 'left';
+
+                    // Reset globalAlpha after drawing this row
+                    ctx.globalAlpha = 1.0;
+
                     y += 40;
                 }
 
@@ -1382,15 +1614,19 @@
 
         // Game loop
         function gameLoop() {
-            // Check wall collision
-            if (snakeX >= 608 || snakeX < 0 || snakeY >= 480 || snakeY < 0) {
-                gameOver();
-                return;
-            }
-
             // Update position
             snakeX += snakeXChange;
             snakeY += snakeYChange;
+
+            // Calculate center of snake head (20x20 pixels, so center is 10 pixels from top-left)
+            const headCenterX = snakeX + 10;
+            const headCenterY = snakeY + 10;
+
+            // Check wall collision (using center of snake head)
+            if (headCenterX >= 608 || headCenterX < 0 || headCenterY >= 480 || headCenterY < 0) {
+                gameOver();
+                return;
+            }
 
             // Use cached multiplier and food color (updated when speed/snakeColor changes)
             let multiplier = cachedMultiplier;
@@ -1490,16 +1726,16 @@
                 // Start shake animation if not already running
                 if (!speedSkinShakeInterval) {
                     speedSkinShakeInterval = setInterval(function () {
-                        // Update shake offsets for each segment (more aggressive: random offset between -4 and 4 pixels)
+                        // Update shake offsets for each segment (reduced: random offset between -2 and 2 pixels)
                         for (let i = 0; i < speedSkinShakeOffsets.length; i++) {
-                            speedSkinShakeOffsets[i].x = (Math.random() - 0.5) * 8;
-                            speedSkinShakeOffsets[i].y = (Math.random() - 0.5) * 8;
+                            speedSkinShakeOffsets[i].x = (Math.random() - 0.5) * 4;
+                            speedSkinShakeOffsets[i].y = (Math.random() - 0.5) * 4;
                         }
                         // Redraw game screen if still in game
                         if (currentScreen === 'game') {
                             gameLoop();
                         }
-                    }, 50); // Update every 50ms for smooth animation
+                    }, 75); // Update every 75ms for smoother, less aggressive animation
                 }
 
                 // Draw each segment with shake offset (visual position only)
@@ -1533,8 +1769,12 @@
                 }
             }
 
-            // Check food collision
-            if (Math.abs(snakeX - foodX) < 20 && Math.abs(snakeY - foodY) < 20) {
+            // Check food collision (using whole front face of snake head - rectangle overlap)
+            // Check if food rectangle overlaps with snake head rectangle
+            const foodCollision = (snakeX < foodX + 20 && snakeX + 20 > foodX &&
+                snakeY < foodY + 20 && snakeY + 20 > foodY);
+
+            if (foodCollision) {
                 // Play sound immediately when collision detected (before any processing)
                 if (!isMuted) {
                     // Switch between two instances to avoid delay from reset
@@ -1634,6 +1874,14 @@
             submitButton.x = (canvas.width - submitButton.width) / 2;
             submitButton.draw();
 
+            // Show "Submitted! Click for Leaderboard" message if score was submitted
+            if (showSubmittedMessage && scoreSubmitted) {
+                ctx.fillStyle = GREEN;
+                ctx.font = 'bold 20px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Submitted! Click for Leaderboard', 304, 395);
+            }
+
             // Other buttons
             homeButton.draw();
             retryButton.draw();
@@ -1690,10 +1938,19 @@
                     scoreList = result.topScores.map(s => s.score);
                     speedList = result.topScores.map(s => s.speed || null);
                     skinList = result.topScores.map(s => s.skin || null);
+                    loadedChunks = 1; // Reset loaded chunks since we got fresh data
                 }
 
                 scoreSubmitted = true;
                 submitButton.color = DARKGREEN;
+
+                // Store submitted score info for leaderboard jump
+                submittedScoreInfo = {
+                    score: score,
+                    username: validation.username
+                };
+                showSubmittedMessage = true;
+
                 drawGameOverScreen();
             } catch (error) {
                 console.error('Failed to submit score:', error);
@@ -1702,6 +1959,8 @@
                 // Re-enable submit button
                 submitButton.color = GREEN;
                 scoreSubmitted = false;
+                showSubmittedMessage = false;
+                submittedScoreInfo = null;
                 drawGameOverScreen();
             }
         }
