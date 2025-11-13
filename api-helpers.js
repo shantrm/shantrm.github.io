@@ -162,6 +162,9 @@ function hexToColorName(hexColor) {
     if (colorStr.toUpperCase() === 'SPEED') {
         return 'SPEED';
     }
+    if (colorStr.toUpperCase() === 'NINJA') {
+        return 'NINJA';
+    }
 
     const colorMap = {
         '#FF0000': 'RED',

@@ -72,9 +72,35 @@
         const HACKER_GREEN = '#00FF00'; // Hacker green color
         const HACKER = 'HACKER'; // Special value for hacker mode
         const SPEED = 'SPEED'; // Special value for speed skin (unlocks with 4x speed)
+        const NINJA = 'NINJA'; // Special value for ninja skin
 
         // Rainbow colors array (ROYGBP: Red, Orange, Yellow, Green, Blue, Purple)
         const RAINBOW_COLORS = [RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE];
+
+        // Canvas dimensions
+        const CANVAS_WIDTH = 608;
+        const CANVAS_HEIGHT = 480;
+
+        // Game object sizes
+        const SEGMENT_SIZE = 20; // Size of snake segments and food
+        const SEGMENT_CENTER_OFFSET = 10; // Half of SEGMENT_SIZE
+
+        // Movement speed increments
+        const MOVEMENT_STEP = 10;
+
+        // Score thresholds
+        const RAINBOW_UNLOCK_SCORE = 150;
+
+        // Proximity threshold for food sound (in pixels)
+        const FOOD_PROXIMITY_THRESHOLD = 15;
+
+        // Score animation settings
+        const SCORE_ANIMATION_DURATION = 1000; // milliseconds
+        const SCORE_ANIMATION_DISTANCE = 50; // pixels to move up
+
+        // Skin unlock requirements
+        const NINJA_UNLOCK_SCORE = 2; // Score needed for ninja skin
+        const NINJA_UNLOCK_SPEED = 90; // 3x speed required for ninja
 
         // Game settings
         let snakeColor = YELLOW;
@@ -83,8 +109,8 @@
         let score = 0;
         let snakeList = [];
         let snakeLength = 1;
-        let snakeX = 294; // Centered on canvas (304 - 10 for 20px head)
-        let snakeY = 230; // Centered on canvas (240 - 10 for 20px head)
+        let snakeX = CANVAS_WIDTH / 2 - SEGMENT_CENTER_OFFSET; // Centered on canvas
+        let snakeY = CANVAS_HEIGHT / 2 - SEGMENT_CENTER_OFFSET; // Centered on canvas
         let snakeXChange = 0;
         let snakeYChange = 0;
         let direction = 100;
@@ -146,6 +172,16 @@
         let blinkBrightness = 1.0; // Brightness factor for blinking (1.0 = normal, 0.5 = dim)
         let blinkGoingDown = true; // Direction of blink animation (true = dimming, false = brightening)
 
+        // Swipe gesture tracking for mobile controls
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let touchEndX = 0;
+        let touchEndY = 0;
+        const MIN_SWIPE_DISTANCE = 50; // Minimum pixels for a swipe to register
+
+        // Score animation tracking
+        let scoreAnimations = []; // Array of {x, y, value, startTime, multiplier}
+
         // Check if rainbow skin is unlocked
         function isRainbowUnlocked() {
             const unlocked = localStorage.getItem('snakeRainbowUnlocked');
@@ -171,6 +207,17 @@
         // Unlock rainbow skin
         function unlockRainbow() {
             localStorage.setItem('snakeRainbowUnlocked', 'true');
+        }
+
+        // Check if ninja skin is unlocked
+        function isNinjaUnlocked() {
+            const unlocked = localStorage.getItem('snakeNinjaUnlocked');
+            return unlocked === 'true';
+        }
+
+        // Unlock ninja skin
+        function unlockNinja() {
+            localStorage.setItem('snakeNinjaUnlocked', 'true');
         }
 
         // Load highscores from API (chunked loading)
@@ -379,9 +426,11 @@
         let darkPurpleBtn = new Button(DARK_PURPLE, 483, 120, 50, 50, '');
 
         // Second row of skins (18px spacing from first row, same as button spacing)
-        let hackerBtn = new Button(BLACK, 75, 188, 50, 50, '');
-        let rainbowBtn = new Button(GRAY, 143, 188, 50, 50, '');
+        // Easter egg skins: Rainbow, Hacker, Speed, Ninja (in that order, last in list)
+        let rainbowBtn = new Button(GRAY, 75, 188, 50, 50, '');
+        let hackerBtn = new Button(BLACK, 143, 188, 50, 50, '');
         let speedBtn = new Button(RED, 211, 188, 50, 50, '');
+        let ninjaBtn = new Button(WHITE, 279, 188, 50, 50, '');
 
         // Speed buttons
         let moreBtn = new Button(WHITE, 385, 340, 50, 50, '+');
@@ -556,6 +605,72 @@
 
             // Keyboard event listeners
             document.addEventListener('keydown', handleKeyDown);
+
+            // Touch event listeners for swipe gestures
+            canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+            canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+        }
+
+        // Handle touch start for swipe gestures
+        function handleTouchStart(e) {
+            if (currentScreen === 'game') {
+                const touch = e.touches[0];
+                const rect = canvas.getBoundingClientRect();
+                touchStartX = touch.clientX - rect.left;
+                touchStartY = touch.clientY - rect.top;
+            }
+        }
+
+        // Handle touch end for swipe gestures
+        function handleTouchEnd(e) {
+            if (currentScreen === 'game') {
+                const touch = e.changedTouches[0];
+                const rect = canvas.getBoundingClientRect();
+                touchEndX = touch.clientX - rect.left;
+                touchEndY = touch.clientY - rect.top;
+
+                // Calculate swipe distance and direction
+                const deltaX = touchEndX - touchStartX;
+                const deltaY = touchEndY - touchStartY;
+                const absDeltaX = Math.abs(deltaX);
+                const absDeltaY = Math.abs(deltaY);
+
+                // Check if it's a valid swipe (minimum distance)
+                if (Math.max(absDeltaX, absDeltaY) < MIN_SWIPE_DISTANCE) {
+                    return; // Not a swipe, probably a tap
+                }
+
+                // Determine swipe direction
+                if (absDeltaX > absDeltaY) {
+                    // Horizontal swipe
+                    if (deltaX > 0 && direction !== 3) {
+                        // Swipe right
+                        direction = 1;
+                        snakeXChange = MOVEMENT_STEP;
+                        snakeYChange = 0;
+                    } else if (deltaX < 0 && direction !== 1) {
+                        // Swipe left
+                        direction = 3;
+                        snakeXChange = -MOVEMENT_STEP;
+                        snakeYChange = 0;
+                    }
+                } else {
+                    // Vertical swipe
+                    if (deltaY > 0 && direction !== 2) {
+                        // Swipe down
+                        direction = 4;
+                        snakeYChange = MOVEMENT_STEP;
+                        snakeXChange = 0;
+                    } else if (deltaY < 0 && direction !== 4) {
+                        // Swipe up
+                        direction = 2;
+                        snakeYChange = -MOVEMENT_STEP;
+                        snakeXChange = 0;
+                    }
+                }
+
+                e.preventDefault(); // Prevent scrolling
+            }
         }
 
         // Handle mouse clicks
@@ -698,7 +813,7 @@
                         if (unlockMessageTimeout) {
                             clearTimeout(unlockMessageTimeout);
                         }
-                        unlockMessage = 'Score > 150 to unlock!';
+                        unlockMessage = 'Score > ' + RAINBOW_UNLOCK_SCORE + ' to unlock!';
                         unlockMessageTimeout = setTimeout(() => {
                             unlockMessage = null;
                             unlockMessageTimeout = null;
@@ -745,6 +860,29 @@
                             clearTimeout(unlockMessageTimeout);
                         }
                         unlockMessage = 'Easter Egg!';
+                        unlockMessageTimeout = setTimeout(() => {
+                            unlockMessage = null;
+                            unlockMessageTimeout = null;
+                            showSettingsScreen();
+                        }, 3000); // Clear after 3 seconds
+                        showSettingsScreen();
+                    }
+                } else if (ninjaBtn.isOver(mouseX, mouseY)) {
+                    if (isNinjaUnlocked()) {
+                        snakeColor = NINJA;
+                        updateCachedValues();
+                        unlockMessage = null; // Clear message when unlocked skin is selected
+                        if (unlockMessageTimeout) {
+                            clearTimeout(unlockMessageTimeout);
+                            unlockMessageTimeout = null;
+                        }
+                        showSettingsScreen();
+                    } else {
+                        // Show unlock message for locked ninja skin
+                        if (unlockMessageTimeout) {
+                            clearTimeout(unlockMessageTimeout);
+                        }
+                        unlockMessage = 'Score > ' + NINJA_UNLOCK_SCORE + ' on 3x speed!';
                         unlockMessageTimeout = setTimeout(() => {
                             unlockMessage = null;
                             unlockMessageTimeout = null;
@@ -947,19 +1085,19 @@
             if (currentScreen === 'game') {
                 if (e.key === 'ArrowLeft' && direction !== 1) {
                     direction = 3;
-                    snakeXChange = -10;
+                    snakeXChange = -MOVEMENT_STEP;
                     snakeYChange = 0;
                 } else if (e.key === 'ArrowRight' && direction !== 3) {
                     direction = 1;
-                    snakeXChange = 10;
+                    snakeXChange = MOVEMENT_STEP;
                     snakeYChange = 0;
                 } else if (e.key === 'ArrowUp' && direction !== 4) {
                     direction = 2;
-                    snakeYChange = -10;
+                    snakeYChange = -MOVEMENT_STEP;
                     snakeXChange = 0;
                 } else if (e.key === 'ArrowDown' && direction !== 2) {
                     direction = 4;
-                    snakeYChange = 10;
+                    snakeYChange = MOVEMENT_STEP;
                     snakeXChange = 0;
                 }
             } else if (currentScreen === 'gameover') {
@@ -1123,33 +1261,9 @@
             purpleBtn.draw();
             darkPurpleBtn.draw();
 
-            // Draw second row buttons
-            // Hacker button (black with green neon outline, or dimmed if locked)
-            if (isHackerUnlocked()) {
-                ctx.fillStyle = BLACK;
-                ctx.fillRect(75, 188, 50, 50);
-                ctx.strokeStyle = HACKER_GREEN;
-                ctx.lineWidth = 3;
-                ctx.strokeRect(75, 188, 50, 50);
-            } else {
-                ctx.fillStyle = '#1a1a1a'; // Dimmed black
-                ctx.fillRect(75, 188, 50, 50);
-                ctx.strokeStyle = '#006600'; // Dimmed green
-                ctx.lineWidth = 2;
-                ctx.strokeRect(75, 188, 50, 50);
-                // Draw lock image if locked
-                if (lockImage.complete && lockImage.naturalWidth > 0) {
-                    ctx.drawImage(lockImage, 75 + 10, 188 + 10, 30, 30);
-                } else {
-                    ctx.fillStyle = WHITE;
-                    ctx.font = 'bold 30px Arial';
-                    ctx.textAlign = 'center';
-                    ctx.fillText('🔒', 100, 218);
-                }
-            }
-
-            // Rainbow button (bright if unlocked, dim if locked) - moved to second row
-            const gradient = ctx.createLinearGradient(143, 188, 193, 238);
+            // Draw second row buttons - Easter egg skins (Rainbow, Hacker, Speed, Ninja)
+            // Rainbow button (first in row, bright if unlocked, dim if locked)
+            const gradient = ctx.createLinearGradient(75, 188, 125, 238);
             if (isRainbowUnlocked()) {
                 // Bright colors for unlocked
                 gradient.addColorStop(0, RED);
@@ -1168,18 +1282,42 @@
                 gradient.addColorStop(1, '#990099'); // Dimmed PURPLE
             }
             ctx.fillStyle = gradient;
-            ctx.fillRect(143, 188, 50, 50);
+            ctx.fillRect(75, 188, 50, 50);
             ctx.strokeStyle = BLACK;
             ctx.lineWidth = 2;
-            ctx.strokeRect(143, 188, 50, 50);
+            ctx.strokeRect(75, 188, 50, 50);
 
             // Draw lock image if locked
             if (!isRainbowUnlocked()) {
                 // Draw lock image if loaded
                 if (lockImage.complete && lockImage.naturalWidth > 0) {
-                    ctx.drawImage(lockImage, 143 + 10, 188 + 10, 30, 30);
+                    ctx.drawImage(lockImage, 75 + 10, 188 + 10, 30, 30);
                 } else {
                     // Fallback to text if image not loaded yet
+                    ctx.fillStyle = WHITE;
+                    ctx.font = 'bold 30px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('🔒', 100, 218);
+                }
+            }
+
+            // Hacker button (second in row, black with green neon outline, or dimmed if locked)
+            if (isHackerUnlocked()) {
+                ctx.fillStyle = BLACK;
+                ctx.fillRect(143, 188, 50, 50);
+                ctx.strokeStyle = HACKER_GREEN;
+                ctx.lineWidth = 3;
+                ctx.strokeRect(143, 188, 50, 50);
+            } else {
+                ctx.fillStyle = '#1a1a1a'; // Dimmed black
+                ctx.fillRect(143, 188, 50, 50);
+                ctx.strokeStyle = '#006600'; // Dimmed green
+                ctx.lineWidth = 2;
+                ctx.strokeRect(143, 188, 50, 50);
+                // Draw lock image if locked
+                if (lockImage.complete && lockImage.naturalWidth > 0) {
+                    ctx.drawImage(lockImage, 143 + 10, 188 + 10, 30, 30);
+                } else {
                     ctx.fillStyle = WHITE;
                     ctx.font = 'bold 30px Arial';
                     ctx.textAlign = 'center';
@@ -1225,6 +1363,31 @@
                 }
             }
 
+            // Draw ninja button (white to black gradient, or dimmed if locked)
+            if (isNinjaUnlocked()) {
+                // Draw white to black gradient
+                const ninjaGradient = ctx.createLinearGradient(279, 188, 329, 238);
+                ninjaGradient.addColorStop(0, WHITE);
+                ninjaGradient.addColorStop(1, '#010101'); // Almost black (one value before pure black)
+                ctx.fillStyle = ninjaGradient;
+                ctx.fillRect(279, 188, 50, 50);
+            } else {
+                ctx.fillStyle = '#808080'; // Dimmed gray
+                ctx.fillRect(279, 188, 50, 50);
+                // Draw lock image if locked
+                if (lockImage.complete && lockImage.naturalWidth > 0) {
+                    ctx.drawImage(lockImage, 279 + 10, 188 + 10, 30, 30);
+                } else {
+                    ctx.fillStyle = WHITE;
+                    ctx.font = 'bold 30px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('🔒', 304, 218);
+                }
+            }
+            ctx.strokeStyle = BLACK;
+            ctx.lineWidth = 2;
+            ctx.strokeRect(279, 188, 50, 50);
+
             // Highlight selected color
             let selectX, selectY;
             if (snakeColor === RED) { selectX = 70; selectY = 115; }
@@ -1234,9 +1397,10 @@
             else if (snakeColor === BLUE) { selectX = 342; selectY = 115; }
             else if (snakeColor === PURPLE) { selectX = 410; selectY = 115; }
             else if (snakeColor === DARK_PURPLE) { selectX = 478; selectY = 115; }
-            else if (snakeColor === HACKER) { selectX = 70; selectY = 183; }
-            else if (snakeColor === RAINBOW) { selectX = 138; selectY = 183; }
+            else if (snakeColor === RAINBOW) { selectX = 70; selectY = 183; }
+            else if (snakeColor === HACKER) { selectX = 138; selectY = 183; }
             else if (snakeColor === SPEED) { selectX = 206 + speedButtonShakeOffsetX; selectY = 183 + speedButtonShakeOffsetY; }
+            else if (snakeColor === NINJA) { selectX = 274; selectY = 183; }
 
             ctx.strokeStyle = WHITE;
             ctx.lineWidth = 5;
@@ -1413,10 +1577,10 @@
                     const rankWidth = ctx.measureText(rankText).width;
                     let usernameX = 90 + rankWidth;
 
-                    // Check if skin exists and is not RAINBOW
+                    // Check if skin exists and is not special skin
                     const skinValue = combined[i].skin;
 
-                    if (skinValue && String(skinValue).toUpperCase().trim() !== 'RAINBOW' && String(skinValue).toUpperCase().trim() !== 'HACKER' && String(skinValue).toUpperCase().trim() !== 'SPEED') {
+                    if (skinValue && String(skinValue).toUpperCase().trim() !== 'RAINBOW' && String(skinValue).toUpperCase().trim() !== 'HACKER' && String(skinValue).toUpperCase().trim() !== 'SPEED' && String(skinValue).toUpperCase().trim() !== 'NINJA') {
                         // Convert color name to hex code for display
                         const colorNameToHex = {
                             'RED': RED,
@@ -1489,9 +1653,34 @@
                         usernameX += ctx.measureText(username).width;
                         // Reset font back to normal for other elements
                         ctx.font = '30px Arial';
+                    } else if (combined[i].skin && combined[i].skin.toUpperCase() === 'NINJA') {
+                        // Draw username with white to dark grey gradient (similar to rainbow but with gradient)
+                        const username = combined[i].user;
+                        for (let j = 0; j < username.length; j++) {
+                            const char = username[j];
+
+                            // Calculate gradient: 0.0 = start (white), 1.0 = end (dark grey)
+                            const gradientProgress = username.length > 1 ? j / (username.length - 1) : 0;
+
+                            // Calculate color: start at 255 (white), end at ~128 (dark grey)
+                            // Dark grey would be around #808080 or RGB(128, 128, 128)
+                            const grayValue = Math.round(255 - (gradientProgress * 127)); // 255 to 128
+
+                            // Convert to hex color
+                            const grayHex = grayValue.toString(16).padStart(2, '0');
+                            const color = '#' + grayHex + grayHex + grayHex;
+
+                            ctx.fillStyle = color;
+                            ctx.font = '30px Arial';
+                            ctx.textAlign = 'left';
+                            ctx.fillText(char, usernameX, y);
+
+                            // Move x position for next character
+                            usernameX += ctx.measureText(char).width;
+                        }
                     } else {
-                        // Default white
-                        ctx.fillStyle = WHITE;
+                        // Default yellow (no color value)
+                        ctx.fillStyle = YELLOW;
                         ctx.font = '30px Arial';
                         ctx.textAlign = 'left';
                         ctx.fillText(combined[i].user, usernameX, y);
@@ -1505,23 +1694,29 @@
                     ctx.fillStyle = WHITE;
                     ctx.fillText(scoreText, 520, y);
 
-                    // Draw speed with different color and spacing
+                    // Draw speed with different color and spacing (skip 1x as it's default)
                     if (combined[i].speed !== null && combined[i].speed !== undefined) {
                         let speedNum = combined[i].speed / 30;
                         if (combined[i].speed === 15) speedNum = 0.5;
-                        const speedText = speedNum + 'x';
 
-                        // Measure score width to position speed correctly
-                        const scoreWidth = ctx.measureText(scoreText).width;
-                        const spacing = 20; // Space between speed and score
-
-                        // Use red for 4x (matching game multiplier), orange for others
-                        if (speedNum === 4) {
-                            ctx.fillStyle = RED;
+                        // Skip displaying 1x speed (default)
+                        if (speedNum === 1) {
+                            // Don't display speed for default 1x
                         } else {
-                            ctx.fillStyle = ORANGE;
+                            const speedText = speedNum + 'x';
+
+                            // Measure score width to position speed correctly
+                            const scoreWidth = ctx.measureText(scoreText).width;
+                            const spacing = 20; // Space between speed and score
+
+                            // Use red for 4x (matching game multiplier), orange for others
+                            if (speedNum === 4) {
+                                ctx.fillStyle = RED;
+                            } else {
+                                ctx.fillStyle = ORANGE;
+                            }
+                            ctx.fillText(speedText, 520 - scoreWidth - spacing, y);
                         }
-                        ctx.fillText(speedText, 520 - scoreWidth - spacing, y);
                     }
 
                     ctx.fillStyle = WHITE;
@@ -1533,8 +1728,18 @@
                     y += 40;
                 }
 
-                // Draw arrow buttons if there are more scores to scroll
+                // Draw arrow buttons and page numbers if there are more scores to scroll
                 if (combined.length > SCORES_PER_PAGE) {
+                    // Calculate current page and total pages
+                    const currentPage = Math.floor(scoreScrollIndex / SCORES_PER_PAGE) + 1;
+                    const totalPages = Math.ceil(combined.length / SCORES_PER_PAGE);
+
+                    // Draw page numbers (centered below scores)
+                    ctx.fillStyle = WHITE;
+                    ctx.font = '18px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`Page ${currentPage} of ${totalPages}`, CANVAS_WIDTH / 2, 370);
+
                     // Up arrow (only show if not at top)
                     if (scoreScrollIndex > 0) {
                         upArrowBtn.draw();
@@ -1599,10 +1804,12 @@
             score = 0;
             snakeList = [];
             snakeLength = 1;
-            // Center the snake on the canvas (canvas is 608x480, snake head is 20x20)
-            // Center is at (304, 240), so top-left corner should be (304-10, 240-10) = (294, 230)
-            snakeX = 294;
-            snakeY = 230;
+            // Center the snake on the canvas
+            snakeX = CANVAS_WIDTH / 2 - SEGMENT_CENTER_OFFSET;
+            snakeY = CANVAS_HEIGHT / 2 - SEGMENT_CENTER_OFFSET;
+
+            // Clear score animations
+            scoreAnimations = [];
             snakeXChange = 0;
             snakeYChange = 0;
             direction = 100;
@@ -1611,8 +1818,8 @@
             updateCachedValues();
 
             // Random food position
-            foodX = Math.floor(Math.random() * (608 - 20));
-            foodY = Math.floor(Math.random() * (480 - 20));
+            foodX = Math.floor(Math.random() * (CANVAS_WIDTH - SEGMENT_SIZE));
+            foodY = Math.floor(Math.random() * (CANVAS_HEIGHT - SEGMENT_SIZE));
 
             // Start game loop
             if (gameInterval) clearInterval(gameInterval);
@@ -1625,12 +1832,12 @@
             snakeX += snakeXChange;
             snakeY += snakeYChange;
 
-            // Calculate center of snake head (20x20 pixels, so center is 10 pixels from top-left)
-            const headCenterX = snakeX + 10;
-            const headCenterY = snakeY + 10;
+            // Calculate center of snake head
+            const headCenterX = snakeX + SEGMENT_CENTER_OFFSET;
+            const headCenterY = snakeY + SEGMENT_CENTER_OFFSET;
 
             // Check wall collision (using center of snake head)
-            if (headCenterX >= 608 || headCenterX < 0 || headCenterY >= 480 || headCenterY < 0) {
+            if (headCenterX >= CANVAS_WIDTH || headCenterX < 0 || headCenterY >= CANVAS_HEIGHT || headCenterY < 0) {
                 gameOver();
                 return;
             }
@@ -1679,7 +1886,7 @@
 
             // Food
             ctx.fillStyle = foodColor;
-            ctx.fillRect(foodX, foodY, 20, 20);
+            ctx.fillRect(foodX, foodY, SEGMENT_SIZE, SEGMENT_SIZE);
 
             // Snake - add new segment
             snakeList.push([snakeX, snakeY]);
@@ -1719,7 +1926,7 @@
                     const positionValue = (x + y * 0.7) % (RAINBOW_COLORS.length * 30);
                     const colorIndex = Math.floor(positionValue / 30) % RAINBOW_COLORS.length;
                     ctx.fillStyle = RAINBOW_COLORS[colorIndex];
-                    ctx.fillRect(x, y, 20, 20);
+                    ctx.fillRect(x, y, SEGMENT_SIZE, SEGMENT_SIZE);
                 }
             } else if (snakeColor === SPEED) {
                 // Draw speed skin in dark red with shake effect (visual only, doesn't affect hitbox)
@@ -1752,7 +1959,7 @@
                     const shakeX = speedSkinShakeOffsets[i] ? speedSkinShakeOffsets[i].x : 0;
                     const shakeY = speedSkinShakeOffsets[i] ? speedSkinShakeOffsets[i].y : 0;
                     // Draw at visual position (base + shake), but collision uses base position
-                    ctx.fillRect(baseX + shakeX, baseY + shakeY, 20, 20);
+                    ctx.fillRect(baseX + shakeX, baseY + shakeY, SEGMENT_SIZE, SEGMENT_SIZE);
                 }
             } else if (snakeColor === HACKER) {
                 // Draw each segment as black with green neon outline on every other segment
@@ -1761,28 +1968,72 @@
                 for (let i = 0; i < snakeList.length; i++) {
                     const x = snakeList[i][0];
                     const y = snakeList[i][1];
-                    ctx.fillRect(x, y, 20, 20);
+                    ctx.fillRect(x, y, SEGMENT_SIZE, SEGMENT_SIZE);
                     // Draw green outline on every other segment (starting with first)
                     if (i % 2 === 0) {
                         ctx.strokeStyle = HACKER_GREEN;
                         ctx.lineWidth = 2;
-                        ctx.strokeRect(x, y, 20, 20);
+                        ctx.strokeRect(x, y, SEGMENT_SIZE, SEGMENT_SIZE);
                     }
+                }
+            } else if (snakeColor === NINJA) {
+                // Draw ninja skin: white at head, gradually gets darker, almost black at tail
+                // Initially all segments start as white (top gradient color)
+                // Head is at the END of snakeList (last index), tail is at the BEGINNING (index 0)
+                // So: last index = white (255,255,255), first index = almost black (1,1,1)
+                for (let i = 0; i < snakeList.length; i++) {
+                    const x = snakeList[i][0];
+                    const y = snakeList[i][1];
+
+                    // If snake is very short, keep all segments white (top gradient color)
+                    // Once it grows longer, apply the gradient
+                    if (snakeList.length <= 1) {
+                        ctx.fillStyle = WHITE;
+                    } else {
+                        // Calculate gradient: 0.0 = tail (dark), 1.0 = head (white)
+                        // Head is at the end of the array (last index), tail is at the beginning (index 0)
+                        // i=0 is tail (darkest), i=length-1 is head (lightest)
+                        const gradientProgress = i / (snakeList.length - 1);
+
+                        // Calculate color: start at 1 (almost black) at tail, end at 255 (white) at head
+                        // gradientProgress = 0 at tail (i=0), = 1 at head (i=length-1)
+                        // Formula: grayValue = gradientProgress * 254 + 1
+                        // When gradientProgress = 0 (tail): grayValue = 1 (almost black)
+                        // When gradientProgress = 1 (head): grayValue = 255 (white)
+                        const grayValue = Math.round(gradientProgress * 254 + 1); // 1 to 255
+                        // Ensure first segment (tail) is exactly 1 (almost black, one value before pure black)
+                        const finalGrayValue = i === 0 ? 1 : grayValue;
+
+                        // Convert to hex color
+                        const grayHex = finalGrayValue.toString(16).padStart(2, '0');
+                        const color = '#' + grayHex + grayHex + grayHex;
+                        ctx.fillStyle = color;
+                    }
+
+                    ctx.fillRect(x, y, SEGMENT_SIZE, SEGMENT_SIZE);
                 }
             } else {
                 ctx.fillStyle = snakeColor;
                 for (let segment of snakeList) {
-                    ctx.fillRect(segment[0], segment[1], 20, 20);
+                    ctx.fillRect(segment[0], segment[1], SEGMENT_SIZE, SEGMENT_SIZE);
                 }
             }
 
             // Check food collision (using whole front face of snake head - rectangle overlap)
             // Check if food rectangle overlaps with snake head rectangle
-            const foodCollision = (snakeX < foodX + 20 && snakeX + 20 > foodX &&
-                snakeY < foodY + 20 && snakeY + 20 > foodY);
+            const foodCollision = (snakeX < foodX + SEGMENT_SIZE && snakeX + SEGMENT_SIZE > foodX &&
+                snakeY < foodY + SEGMENT_SIZE && snakeY + SEGMENT_SIZE > foodY);
 
-            if (foodCollision) {
-                // Play sound immediately when collision detected (before any processing)
+            // Check proximity for earlier sound (head center close to food center)
+            // Play sound when very close, before full collision
+            const foodCenterX = foodX + SEGMENT_CENTER_OFFSET;
+            const foodCenterY = foodY + SEGMENT_CENTER_OFFSET;
+            const distanceX = Math.abs(headCenterX - foodCenterX);
+            const distanceY = Math.abs(headCenterY - foodCenterY);
+            const isCloseToFood = distanceX < FOOD_PROXIMITY_THRESHOLD && distanceY < FOOD_PROXIMITY_THRESHOLD;
+
+            if (foodCollision || isCloseToFood) {
+                // Play sound immediately when close or colliding (before any processing)
                 if (!isMuted) {
                     // Switch between two instances to avoid delay from reset
                     if (currentBloopSound === bloopSound) {
@@ -1795,18 +2046,61 @@
                         console.error('Error playing bloop.mp3:', err);
                     });
                 }
+            }
 
+            if (foodCollision) {
                 // Process food collision
-                score += (1 * multiplier);
-                foodX = Math.floor(Math.random() * (608 - 20));
-                foodY = Math.floor(Math.random() * (480 - 20));
+                const pointsGained = 1 * multiplier;
+                score += pointsGained;
+
+                // Create score animation at food location
+                const animationX = foodX + SEGMENT_CENTER_OFFSET;
+                const animationY = foodY + SEGMENT_CENTER_OFFSET;
+                scoreAnimations.push({
+                    x: animationX,
+                    y: animationY,
+                    value: '+' + pointsGained,
+                    startTime: Date.now(),
+                    multiplier: multiplier
+                });
+
+                foodX = Math.floor(Math.random() * (CANVAS_WIDTH - SEGMENT_SIZE));
+                foodY = Math.floor(Math.random() * (CANVAS_HEIGHT - SEGMENT_SIZE));
                 snakeLength += 2;
             }
+
+            // Update and draw score animations
+            const currentTime = Date.now();
+            scoreAnimations = scoreAnimations.filter(anim => {
+                const elapsed = currentTime - anim.startTime;
+                const progress = elapsed / SCORE_ANIMATION_DURATION;
+
+                if (progress >= 1) {
+                    return false; // Animation complete, remove it
+                }
+
+                // Calculate position (move up and fade out)
+                const offsetY = -progress * SCORE_ANIMATION_DISTANCE;
+                const alpha = 1 - progress; // Fade out
+
+                // Draw score animation
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = anim.multiplier === 4 ? RED : ORANGE; // Red for 4x, orange for others
+                ctx.font = 'bold 24px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(anim.value, anim.x, anim.y + offsetY);
+                ctx.restore();
+
+                return true; // Keep animation
+            });
         }
 
         // Game over
         function gameOver() {
             if (gameInterval) clearInterval(gameInterval);
+            // Clear score animations
+            scoreAnimations = [];
             // Stop speed skin shake animation when game ends
             if (speedSkinShakeInterval) {
                 clearInterval(speedSkinShakeInterval);
@@ -1817,10 +2111,17 @@
             usernameInput = '';
             scoreSubmitted = false;
 
-            // Unlock rainbow skin if score >= 150
+            // Unlock rainbow skin if score >= threshold
             const wasRainbowUnlocked = isRainbowUnlocked();
-            if (score >= 150 && !wasRainbowUnlocked) {
+            if (score >= RAINBOW_UNLOCK_SCORE && !wasRainbowUnlocked) {
                 unlockRainbow();
+                newSkinUnlocked = true; // Show notification immediately
+            }
+
+            // Unlock ninja skin if score > 100 on 3x speed
+            const wasNinjaUnlocked = isNinjaUnlocked();
+            if (score > NINJA_UNLOCK_SCORE && speed === NINJA_UNLOCK_SPEED && !wasNinjaUnlocked) {
+                unlockNinja();
                 newSkinUnlocked = true; // Show notification immediately
             }
 
