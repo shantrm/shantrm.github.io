@@ -313,7 +313,7 @@
         let devToolsInterval = null;
         let wasDevToolsOpen = false; // Track if DevTools was previously open (persists across interval calls)
         function detectDevTools() {
-            const threshold = 160;
+            const threshold = 50; // More sensitive threshold (reduced from 160 to 50)
             // Clear any existing interval
             if (devToolsInterval) clearInterval(devToolsInterval);
             devToolsInterval = setInterval(function () {
