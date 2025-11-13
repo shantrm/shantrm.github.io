@@ -311,8 +311,8 @@
 
         // Detect DevTools opening using window size detection
         let devToolsInterval = null;
+        let wasDevToolsOpen = false; // Track if DevTools was previously open (persists across interval calls)
         function detectDevTools() {
-            let wasOpen = false;
             const threshold = 160;
             // Clear any existing interval
             if (devToolsInterval) clearInterval(devToolsInterval);
@@ -323,18 +323,15 @@
                 if (widthDiff > threshold || heightDiff > threshold) {
                     if (!devToolsOpen) {
                         devToolsOpen = true;
-                        if (!wasOpen) {
-                            wasOpen = true;
+                        if (!wasDevToolsOpen) {
+                            wasDevToolsOpen = true;
                             onDevToolsOpen();
                         }
                     }
                 } else {
                     if (devToolsOpen) {
                         devToolsOpen = false;
-                        if (wasOpen) {
-                            wasOpen = false;
-                            onDevToolsClose();
-                        }
+                        // Don't reset wasDevToolsOpen here - keep it true so we know it was opened at least once
                     }
                 }
             }, 500);
@@ -370,6 +367,12 @@
 
         // Initialize game
         async function init() {
+            // Check if hacker skin was previously unlocked (in case DevTools detection fails)
+            const hackerUnlocked = localStorage.getItem('snakeHackerUnlocked');
+            if (hackerUnlocked === 'true') {
+                // Hacker skin is already unlocked, ensure it's available
+                devToolsOpen = true; // Set flag so isHackerUnlocked() returns true
+            }
             detectDevTools(); // Start DevTools detection
             drawStartScreen();
 
