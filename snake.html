@@ -1515,7 +1515,12 @@
                         const scoreWidth = ctx.measureText(scoreText).width;
                         const spacing = 20; // Space between speed and score
 
-                        ctx.fillStyle = ORANGE;
+                        // Use red for 4x (matching game multiplier), orange for others
+                        if (speedNum === 4) {
+                            ctx.fillStyle = RED;
+                        } else {
+                            ctx.fillStyle = ORANGE;
+                        }
                         ctx.fillText(speedText, 520 - scoreWidth - spacing, y);
                     }
 
