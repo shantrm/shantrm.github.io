@@ -83,8 +83,8 @@
         let score = 0;
         let snakeList = [];
         let snakeLength = 1;
-        let snakeX = 304;
-        let snakeY = 240;
+        let snakeX = 294; // Centered on canvas (304 - 10 for 20px head)
+        let snakeY = 230; // Centered on canvas (240 - 10 for 20px head)
         let snakeXChange = 0;
         let snakeYChange = 0;
         let direction = 100;
@@ -1599,8 +1599,10 @@
             score = 0;
             snakeList = [];
             snakeLength = 1;
-            snakeX = 350;
-            snakeY = 290;
+            // Center the snake on the canvas (canvas is 608x480, snake head is 20x20)
+            // Center is at (304, 240), so top-left corner should be (304-10, 240-10) = (294, 230)
+            snakeX = 294;
+            snakeY = 230;
             snakeXChange = 0;
             snakeYChange = 0;
             direction = 100;
