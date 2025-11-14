@@ -116,7 +116,8 @@
         let direction = 100;
         let foodX = 0;
         let foodY = 0;
-        let gameInterval = null;
+        let gameAnimationFrame = null;
+        let lastGameUpdateTime = 0;
 
         // Cached values to avoid recalculation every frame
         let cachedMultiplier = 1;
@@ -172,12 +173,6 @@
         let blinkBrightness = 1.0; // Brightness factor for blinking (1.0 = normal, 0.5 = dim)
         let blinkGoingDown = true; // Direction of blink animation (true = dimming, false = brightening)
 
-        // Swipe gesture tracking for mobile controls
-        let touchStartX = 0;
-        let touchStartY = 0;
-        let touchEndX = 0;
-        let touchEndY = 0;
-        const MIN_SWIPE_DISTANCE = 50; // Minimum pixels for a swipe to register
 
         // Score animation tracking
         let scoreAnimations = []; // Array of {x, y, value, startTime, multiplier}
@@ -605,72 +600,6 @@
 
             // Keyboard event listeners
             document.addEventListener('keydown', handleKeyDown);
-
-            // Touch event listeners for swipe gestures
-            canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
-            canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
-        }
-
-        // Handle touch start for swipe gestures
-        function handleTouchStart(e) {
-            if (currentScreen === 'game') {
-                const touch = e.touches[0];
-                const rect = canvas.getBoundingClientRect();
-                touchStartX = touch.clientX - rect.left;
-                touchStartY = touch.clientY - rect.top;
-            }
-        }
-
-        // Handle touch end for swipe gestures
-        function handleTouchEnd(e) {
-            if (currentScreen === 'game') {
-                const touch = e.changedTouches[0];
-                const rect = canvas.getBoundingClientRect();
-                touchEndX = touch.clientX - rect.left;
-                touchEndY = touch.clientY - rect.top;
-
-                // Calculate swipe distance and direction
-                const deltaX = touchEndX - touchStartX;
-                const deltaY = touchEndY - touchStartY;
-                const absDeltaX = Math.abs(deltaX);
-                const absDeltaY = Math.abs(deltaY);
-
-                // Check if it's a valid swipe (minimum distance)
-                if (Math.max(absDeltaX, absDeltaY) < MIN_SWIPE_DISTANCE) {
-                    return; // Not a swipe, probably a tap
-                }
-
-                // Determine swipe direction
-                if (absDeltaX > absDeltaY) {
-                    // Horizontal swipe
-                    if (deltaX > 0 && direction !== 3) {
-                        // Swipe right
-                        direction = 1;
-                        snakeXChange = MOVEMENT_STEP;
-                        snakeYChange = 0;
-                    } else if (deltaX < 0 && direction !== 1) {
-                        // Swipe left
-                        direction = 3;
-                        snakeXChange = -MOVEMENT_STEP;
-                        snakeYChange = 0;
-                    }
-                } else {
-                    // Vertical swipe
-                    if (deltaY > 0 && direction !== 2) {
-                        // Swipe down
-                        direction = 4;
-                        snakeYChange = MOVEMENT_STEP;
-                        snakeXChange = 0;
-                    } else if (deltaY < 0 && direction !== 4) {
-                        // Swipe up
-                        direction = 2;
-                        snakeYChange = -MOVEMENT_STEP;
-                        snakeXChange = 0;
-                    }
-                }
-
-                e.preventDefault(); // Prevent scrolling
-            }
         }
 
         // Handle mouse clicks
@@ -1821,30 +1750,131 @@
             foodX = Math.floor(Math.random() * (CANVAS_WIDTH - SEGMENT_SIZE));
             foodY = Math.floor(Math.random() * (CANVAS_HEIGHT - SEGMENT_SIZE));
 
-            // Start game loop
-            if (gameInterval) clearInterval(gameInterval);
-            gameInterval = setInterval(gameLoop, 1000 / speed);
+            // Start game loop using requestAnimationFrame for better Safari performance
+            if (gameAnimationFrame) cancelAnimationFrame(gameAnimationFrame);
+            lastGameUpdateTime = performance.now();
+            gameLoop();
         }
 
-        // Game loop
+        // Game loop using requestAnimationFrame for consistent performance across browsers
         function gameLoop() {
-            // Update position
-            snakeX += snakeXChange;
-            snakeY += snakeYChange;
+            const now = performance.now();
+            const targetInterval = 1000 / speed; // Target milliseconds between updates
+            let elapsed = now - lastGameUpdateTime;
 
-            // Calculate center of snake head
-            const headCenterX = snakeX + SEGMENT_CENTER_OFFSET;
-            const headCenterY = snakeY + SEGMENT_CENTER_OFFSET;
+            // Use fixed timestep with catch-up to ensure consistent speed across browsers
+            // If we fall behind (Safari timing differences), catch up by running multiple updates
+            // This ensures the game runs at the same speed regardless of frame rate differences
+            let updateCount = 0;
+            const maxUpdates = 10; // Increased cap for better catch-up on Safari
 
-            // Check wall collision (using center of snake head)
-            if (headCenterX >= CANVAS_WIDTH || headCenterX < 0 || headCenterY >= CANVAS_HEIGHT || headCenterY < 0) {
-                gameOver();
-                return;
+            // Calculate how many updates we should do this frame
+            const updatesNeeded = Math.floor(elapsed / targetInterval);
+            const actualUpdates = Math.min(updatesNeeded, maxUpdates);
+
+            for (let i = 0; i < actualUpdates; i++) {
+                lastGameUpdateTime += targetInterval; // Use fixed step for deterministic timing
+
+                // Update position
+                snakeX += snakeXChange;
+                snakeY += snakeYChange;
+
+                // Calculate center of snake head
+                const headCenterX = snakeX + SEGMENT_CENTER_OFFSET;
+                const headCenterY = snakeY + SEGMENT_CENTER_OFFSET;
+
+                // Check wall collision (using center of snake head)
+                if (headCenterX >= CANVAS_WIDTH || headCenterX < 0 || headCenterY >= CANVAS_HEIGHT || headCenterY < 0) {
+                    gameOver();
+                    return;
+                }
+
+                // Snake - add new segment
+                snakeList.push([snakeX, snakeY]);
+
+                // Update speed skin shake offsets array length if needed
+                if (snakeColor === SPEED && speedSkinShakeOffsets.length < snakeList.length) {
+                    // Add new shake offset for the new segment
+                    speedSkinShakeOffsets.push({ x: 0, y: 0 });
+                }
+
+                // Remove old segments efficiently (only if needed)
+                if (snakeList.length > snakeLength) {
+                    const removeCount = snakeList.length - snakeLength;
+                    snakeList.splice(0, removeCount);
+                    // Also remove corresponding shake offsets if speed skin is active
+                    if (snakeColor === SPEED && speedSkinShakeOffsets.length >= removeCount) {
+                        speedSkinShakeOffsets.splice(0, removeCount);
+                    }
+                }
+
+                // Check self collision
+                for (let i = 0; i < snakeList.length - 1; i++) {
+                    if (snakeList[i][0] === snakeX && snakeList[i][1] === snakeY) {
+                        gameOver();
+                        return;
+                    }
+                }
+
+                // Check food collision (using whole front face of snake head - rectangle overlap)
+                // Check if food rectangle overlaps with snake head rectangle
+                const foodCollision = (snakeX < foodX + SEGMENT_SIZE && snakeX + SEGMENT_SIZE > foodX &&
+                    snakeY < foodY + SEGMENT_SIZE && snakeY + SEGMENT_SIZE > foodY);
+
+                // Check proximity for earlier sound (head center close to food center)
+                // Play sound when very close, before full collision
+                const foodCenterX = foodX + SEGMENT_CENTER_OFFSET;
+                const foodCenterY = foodY + SEGMENT_CENTER_OFFSET;
+                const distanceX = Math.abs(headCenterX - foodCenterX);
+                const distanceY = Math.abs(headCenterY - foodCenterY);
+                const isCloseToFood = distanceX < FOOD_PROXIMITY_THRESHOLD && distanceY < FOOD_PROXIMITY_THRESHOLD;
+
+                // Use cached multiplier and food color (updated when speed/snakeColor changes)
+                let multiplier = cachedMultiplier;
+                let foodColor = cachedFoodColor;
+
+                if (foodCollision || isCloseToFood) {
+                    // Play sound immediately when close or colliding (before any processing)
+                    if (!isMuted) {
+                        // Switch between two instances to avoid delay from reset
+                        if (currentBloopSound === bloopSound) {
+                            currentBloopSound = bloopSound2;
+                        } else {
+                            currentBloopSound = bloopSound;
+                        }
+                        currentBloopSound.currentTime = 0; // Reset to start
+                        currentBloopSound.play().catch(err => {
+                            console.error('Error playing bloop.mp3:', err);
+                        });
+                    }
+                }
+
+                if (foodCollision) {
+                    // Process food collision
+                    const pointsGained = 1 * multiplier;
+                    score += pointsGained;
+
+                    // Create score animation at food location
+                    const animationX = foodX + SEGMENT_CENTER_OFFSET;
+                    const animationY = foodY + SEGMENT_CENTER_OFFSET;
+                    scoreAnimations.push({
+                        x: animationX,
+                        y: animationY,
+                        value: '+' + pointsGained,
+                        startTime: Date.now(),
+                        multiplier: multiplier
+                    });
+
+                    foodX = Math.floor(Math.random() * (CANVAS_WIDTH - SEGMENT_SIZE));
+                    foodY = Math.floor(Math.random() * (CANVAS_HEIGHT - SEGMENT_SIZE));
+                    snakeLength += 2;
+                }
             }
 
-            // Use cached multiplier and food color (updated when speed/snakeColor changes)
-            let multiplier = cachedMultiplier;
-            let foodColor = cachedFoodColor;
+            // Always render (even if game state didn't update) for smooth animations
+            // Use cached multiplier and food color
+            const multiplier = cachedMultiplier;
+            const foodColor = cachedFoodColor;
 
             // Draw
             ctx.fillStyle = BLACK;
@@ -1887,33 +1917,6 @@
             // Food
             ctx.fillStyle = foodColor;
             ctx.fillRect(foodX, foodY, SEGMENT_SIZE, SEGMENT_SIZE);
-
-            // Snake - add new segment
-            snakeList.push([snakeX, snakeY]);
-
-            // Update speed skin shake offsets array length if needed
-            if (snakeColor === SPEED && speedSkinShakeOffsets.length < snakeList.length) {
-                // Add new shake offset for the new segment
-                speedSkinShakeOffsets.push({ x: 0, y: 0 });
-            }
-
-            // Remove old segments efficiently (only if needed)
-            if (snakeList.length > snakeLength) {
-                const removeCount = snakeList.length - snakeLength;
-                snakeList.splice(0, removeCount);
-                // Also remove corresponding shake offsets if speed skin is active
-                if (snakeColor === SPEED && speedSkinShakeOffsets.length >= removeCount) {
-                    speedSkinShakeOffsets.splice(0, removeCount);
-                }
-            }
-
-            // Check self collision
-            for (let i = 0; i < snakeList.length - 1; i++) {
-                if (snakeList[i][0] === snakeX && snakeList[i][1] === snakeY) {
-                    gameOver();
-                    return;
-                }
-            }
 
             // Draw snake
             if (snakeColor === RAINBOW) {
@@ -2019,56 +2022,6 @@
                 }
             }
 
-            // Check food collision (using whole front face of snake head - rectangle overlap)
-            // Check if food rectangle overlaps with snake head rectangle
-            const foodCollision = (snakeX < foodX + SEGMENT_SIZE && snakeX + SEGMENT_SIZE > foodX &&
-                snakeY < foodY + SEGMENT_SIZE && snakeY + SEGMENT_SIZE > foodY);
-
-            // Check proximity for earlier sound (head center close to food center)
-            // Play sound when very close, before full collision
-            const foodCenterX = foodX + SEGMENT_CENTER_OFFSET;
-            const foodCenterY = foodY + SEGMENT_CENTER_OFFSET;
-            const distanceX = Math.abs(headCenterX - foodCenterX);
-            const distanceY = Math.abs(headCenterY - foodCenterY);
-            const isCloseToFood = distanceX < FOOD_PROXIMITY_THRESHOLD && distanceY < FOOD_PROXIMITY_THRESHOLD;
-
-            if (foodCollision || isCloseToFood) {
-                // Play sound immediately when close or colliding (before any processing)
-                if (!isMuted) {
-                    // Switch between two instances to avoid delay from reset
-                    if (currentBloopSound === bloopSound) {
-                        currentBloopSound = bloopSound2;
-                    } else {
-                        currentBloopSound = bloopSound;
-                    }
-                    currentBloopSound.currentTime = 0; // Reset to start
-                    currentBloopSound.play().catch(err => {
-                        console.error('Error playing bloop.mp3:', err);
-                    });
-                }
-            }
-
-            if (foodCollision) {
-                // Process food collision
-                const pointsGained = 1 * multiplier;
-                score += pointsGained;
-
-                // Create score animation at food location
-                const animationX = foodX + SEGMENT_CENTER_OFFSET;
-                const animationY = foodY + SEGMENT_CENTER_OFFSET;
-                scoreAnimations.push({
-                    x: animationX,
-                    y: animationY,
-                    value: '+' + pointsGained,
-                    startTime: Date.now(),
-                    multiplier: multiplier
-                });
-
-                foodX = Math.floor(Math.random() * (CANVAS_WIDTH - SEGMENT_SIZE));
-                foodY = Math.floor(Math.random() * (CANVAS_HEIGHT - SEGMENT_SIZE));
-                snakeLength += 2;
-            }
-
             // Update and draw score animations
             const currentTime = Date.now();
             scoreAnimations = scoreAnimations.filter(anim => {
@@ -2094,11 +2047,19 @@
 
                 return true; // Keep animation
             });
+
+            // Continue animation loop
+            if (currentScreen === 'game') {
+                gameAnimationFrame = requestAnimationFrame(gameLoop);
+            }
         }
 
         // Game over
         function gameOver() {
-            if (gameInterval) clearInterval(gameInterval);
+            if (gameAnimationFrame) {
+                cancelAnimationFrame(gameAnimationFrame);
+                gameAnimationFrame = null;
+            }
             // Clear score animations
             scoreAnimations = [];
             // Stop speed skin shake animation when game ends
